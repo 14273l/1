@@ -1,378 +1,751 @@
--- Gui to Lua
--- Version: 3.2
+local workspace = cloneref(game:GetService("Workspace"))
+local run = cloneref(game:GetService("RunService"))
+local http_service = cloneref(game:GetService("HttpService"))
+local players = cloneref(game:GetService("Players"))
 
--- Instances:
+local vec2 = Vector2.new
+local vec3 = Vector3.new
+local dim2 = UDim2.new
+local dim = UDim.new 
+local rect = Rect.new
+local cfr = CFrame.new
+local empty_cfr = cfr()
+local point_object_space = empty_cfr.PointToObjectSpace
+local angle = CFrame.Angles
+local dim_offset = UDim2.fromOffset
 
-local ExternalUI = Instance.new("ScreenGui")
-local CMDBase = Instance.new("Frame")
-local uselessshit = Instance.new("Folder")
-local Line = Instance.new("Frame")
-local ImadminHere = Instance.new("TextLabel")
-local pasteshit = Instance.new("TextLabel")
-local TextLabel = Instance.new("TextLabel")
-local CloseButton = Instance.new("TextButton")
-local HideButton = Instance.new("TextButton")
-local CMDPart = Instance.new("Frame")
-local cdisk = Instance.new("TextLabel")
-local functiona = Instance.new("Folder")
-local first = Instance.new("TextLabel")
-local sec = Instance.new("TextLabel")
-local three = Instance.new("TextLabel")
+local color = Color3.new
+local rgb = Color3.fromRGB
+local hex = Color3.fromHex
+local hsv = Color3.fromHSV
+local rgbseq = ColorSequence.new
+local rgbkey = ColorSequenceKeypoint.new
+local numseq = NumberSequence.new
+local numkey = NumberSequenceKeypoint.new
 
---Properties:
+local camera = workspace.CurrentCamera
 
-ExternalUI.Name = "ExternalUI"
-ExternalUI.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-ExternalUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local bones = {
+    {"Head", "UpperTorso"},
+    {"UpperTorso", "LowerTorso"},
+    {"UpperTorso", "LeftUpperArm"},
+    {"UpperTorso", "RightUpperArm"},
+    {"LeftUpperArm", "LeftLowerArm"},
+    {"RightUpperArm", "RightLowerArm"},
+    {"LowerTorso", "LeftUpperLeg"},
+    {"LowerTorso", "RightUpperLeg"},
+    {"LeftUpperLeg", "LeftLowerLeg"},
+    {"RightUpperLeg", "RightLowerLeg"},
+}
 
-CMDBase.Name = "CMDBase"
-CMDBase.Parent = ExternalUI
-CMDBase.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
-CMDBase.BorderColor3 = Color3.fromRGB(0, 0, 0)
-CMDBase.BorderSizePixel = 0
-CMDBase.Position = UDim2.new(0.198851004, 0, 0.287713856, 0)
-CMDBase.Size = UDim2.new(0, 601, 0, 273)
+local flags = { -- basically a substitute for ur ui flags (flags["wahdiuawdhwa"])
+    ["Enabled"] = true;
+    ["Names"] = true; 
+    ["Name_Color"] = { Color = rgb(0, 255, 255) };
+    ["Boxes"] = true;
+    ["Box_Type"] = "Corner";
+    ["Box_Color"] = { Color = rgb(0, 255, 0) };
+    ["Healthbar"] = true; 
+    ["Health_High"] = { Color = rgb(0, 255, 0) };
+    ["Health_Low"] = { Color = rgb(255, 0, 0) };
+    ["Distance"] = true;
+    ["Weapon"] = true;
+    ["Skeletons"] = true;
+    ["Skeletons_Color"] = { Color = rgb(16, 0, 247) };
+    ["Distance_Color"] = { Color = rgb(0, 255, 0) };
+    ["Weapon_Color"] = { Color = rgb(0, 255, 255) }
+}
 
-uselessshit.Name = "uselessshit"
-uselessshit.Parent = CMDBase
+local fonts = {}; do
+    function Register_Font(Name, Weight, Style, Asset)
+        if not isfile(Asset.Id) then
+            writefile(Asset.Id, Asset.Font)
+        end
 
-Line.Name = "Line"
-Line.Parent = uselessshit
-Line.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-Line.BorderColor3 = Color3.fromRGB(0, 0, 0)
-Line.BorderSizePixel = 0
-Line.Position = UDim2.new(-5.07779987e-08, 0, 0, 0)
-Line.Size = UDim2.new(0, 601, 0, 27)
+        if isfile(Name .. ".font") then
+            delfile(Name .. ".font")
+        end
 
-ImadminHere.Name = "ImadminHere"
-ImadminHere.Parent = uselessshit
-ImadminHere.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-ImadminHere.BackgroundTransparency = 1.000
-ImadminHere.BorderColor3 = Color3.fromRGB(0, 0, 0)
-ImadminHere.BorderSizePixel = 0
-ImadminHere.Size = UDim2.new(0, 220, 0, 27)
-ImadminHere.Font = Enum.Font.Code
-ImadminHere.Text = "Administrator: Command prompt"
-ImadminHere.TextColor3 = Color3.fromRGB(0, 0, 0)
-ImadminHere.TextSize = 14.000
+        local Data = {
+            name = Name,
+            faces = {
+                {
+                    name = "Normal",
+                    weight = Weight,
+                    style = Style,
+                    assetId = getcustomasset(Asset.Id),
+                },
+            },
+        }
+        writefile(Name .. ".font", http_service:JSONEncode(Data))
 
-pasteshit.Name = "pasteshit"
-pasteshit.Parent = ImadminHere
-pasteshit.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-pasteshit.BackgroundTransparency = 1.000
-pasteshit.BorderColor3 = Color3.fromRGB(0, 0, 0)
-pasteshit.BorderSizePixel = 0
-pasteshit.Position = UDim2.new(-0.00166390161, 0, 0.987789571, 0)
-pasteshit.Size = UDim2.new(0, 316, 0, 19)
-pasteshit.Font = Enum.Font.Code
-pasteshit.Text = "PasteSoft Shindows [Version 10.0.19044.4894]"
-pasteshit.TextColor3 = Color3.fromRGB(255, 255, 255)
-pasteshit.TextSize = 14.000
+        return getcustomasset(Name .. ".font");
+    end
+    
+    local ProggyTiny = Register_Font("adwdawdwadadwadawdawdawdawd!", 100, "Normal", {
+        Id = "ProggyTinyyyy.ttf",
+        Font = game:HttpGet("https://github.com/i77lhm/storage/raw/refs/heads/main/fonts/ProggyTiny.ttf"),
+    })
 
-TextLabel.Parent = pasteshit
-TextLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-TextLabel.BackgroundTransparency = 1.000
-TextLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
-TextLabel.BorderSizePixel = 0
-TextLabel.Position = UDim2.new(-9.65746167e-08, 0, 0.631578922, 0)
-TextLabel.Size = UDim2.new(0, 511, 0, 23)
-TextLabel.Font = Enum.Font.Code
-TextLabel.Text = "(c) Corporation PasteSoft (PasteSoft corporation). All rights are secured"
-TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextLabel.TextSize = 14.000
-
-CloseButton.Name = "CloseButton"
-CloseButton.Parent = CMDBase
-CloseButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
-CloseButton.BorderSizePixel = 0
-CloseButton.Position = UDim2.new(0.945091486, 0, 0, 0)
-CloseButton.Size = UDim2.new(0, 33, 0, 27)
-CloseButton.Font = Enum.Font.SourceSans
-CloseButton.Text = "X"
-CloseButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-CloseButton.TextSize = 14.000
-
-HideButton.Name = "HideButton"
-HideButton.Parent = CMDBase
-HideButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-HideButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
-HideButton.BorderSizePixel = 0
-HideButton.Position = UDim2.new(0.890183032, 0, 0, 0)
-HideButton.Size = UDim2.new(0, 33, 0, 27)
-HideButton.Font = Enum.Font.SourceSans
-HideButton.Text = "---"
-HideButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-HideButton.TextSize = 14.000
-
-CMDPart.Name = "CMDPart"
-CMDPart.Parent = CMDBase
-CMDPart.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-CMDPart.BackgroundTransparency = 1.000
-CMDPart.BorderColor3 = Color3.fromRGB(0, 0, 0)
-CMDPart.BorderSizePixel = 0
-CMDPart.Position = UDim2.new(0, 0, 0.267399281, 0)
-CMDPart.Size = UDim2.new(0, 601, 0, 200)
-
-cdisk.Name = "cdisk"
-cdisk.Parent = CMDPart
-cdisk.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-cdisk.BackgroundTransparency = 1.000
-cdisk.BorderColor3 = Color3.fromRGB(0, 0, 0)
-cdisk.BorderSizePixel = 0
-cdisk.Position = UDim2.new(-0.00166389346, 0, -0.0866484046, 0)
-cdisk.Size = UDim2.new(0, 152, 0, 45)
-cdisk.Font = Enum.Font.Code
-cdisk.Text = "C:\\Users\\DungeonMaster>"
-cdisk.TextColor3 = Color3.fromRGB(255, 255, 255)
-cdisk.TextSize = 14.000
-
-functiona.Name = "functiona"
-functiona.Parent = CMDPart
-
-first.Name = "first"
-first.Parent = functiona
-first.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-first.BackgroundTransparency = 1.000
-first.BorderColor3 = Color3.fromRGB(0, 0, 0)
-first.BorderSizePixel = 0
-first.Position = UDim2.new(0, 0, 0.135000005, 0)
-first.Size = UDim2.new(0, 139, 0, 26)
-first.Font = Enum.Font.Code
-first.Text = "Anti-Aim [Numpad1]"
-first.TextColor3 = Color3.fromRGB(255, 255, 255)
-first.TextSize = 14.000
-
-sec.Name = "sec"
-sec.Parent = functiona
-sec.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-sec.BackgroundTransparency = 1.000
-sec.BorderColor3 = Color3.fromRGB(0, 0, 0)
-sec.BorderSizePixel = 0
-sec.Position = UDim2.new(0, 0, 0.25, 0)
-sec.Size = UDim2.new(0, 133, 0, 26)
-sec.Font = Enum.Font.Code
-sec.Text = "FuckYou [Numpad2]"
-sec.TextColor3 = Color3.fromRGB(255, 255, 255)
-sec.TextSize = 14.000
-
-three.Name = "three"
-three.Parent = functiona
-three.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-three.BackgroundTransparency = 1.000
-three.BorderColor3 = Color3.fromRGB(0, 0, 0)
-three.BorderSizePixel = 0
-three.Position = UDim2.new(-0.00166389346, 0, 0.49000001, 0)
-three.Size = UDim2.new(0, 50, 0, 26)
-three.Font = Enum.Font.Code
-three.TextColor3 = Color3.fromRGB(255, 255, 255)
-three.TextSize = 14.000
-
--- Scripts:
-
-local function NJJCCS_fake_script() -- Line.LocalScript 
-	local script = Instance.new('LocalScript', Line)
-
-	--// Services
-	local Players = game:GetService('Players')
-	local UIS = game:GetService("UserInputService")
-	
-	--// Variables
-	local UI = script.Parent
-	local frame = UI.Parent.Parent
-	
-	local Player = Players.LocalPlayer
-	local Mouse = Player:GetMouse()
-	
-	local Hovered = false
-	local Holding = false
-	local MoveCon = nil
-	
-	local InitialX, InitialY, UIInitialPos
-	
-	--// Functions
-	
-	local function Drag()
-		if Holding == false then MoveCon:Disconnect(); return end
-		local distanceMovedX = InitialX - Mouse.X
-		local distanceMovedY = InitialY - Mouse.Y
-	
-		frame.Position = UIInitialPos - UDim2.new(0, distanceMovedX, 0, distanceMovedY)
-	end
-	
-	--// Connections
-	
-	UI.MouseEnter:Connect(function()
-		Hovered = true
-	end)
-	
-	UI.MouseLeave:Connect(function()
-		Hovered = false
-	end)
-	
-	UIS.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			Holding = Hovered
-			if Holding then
-				InitialX, InitialY = Mouse.X, Mouse.Y
-				UIInitialPos = frame.Position
-	
-				MoveCon = Mouse.Move:Connect(Drag)
-			end
-		end
-	end)
-	
-	UIS.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			Holding = false
-		end
-	end)
+    fonts = {
+        main = Font.new(ProggyTiny, Enum.FontWeight.Regular, Enum.FontStyle.Normal);
+    }
 end
-coroutine.wrap(NJJCCS_fake_script)()
-local function DIPU_fake_script() -- CloseButton.LocalScript 
-	local script = Instance.new('LocalScript', CloseButton)
 
-	local button = script.Parent
-	local TweenService = game:GetService("TweenService")
-	
-	local goal = {}
-	goal.BackgroundColor3 = Color3.fromRGB(206, 9, 12)
-	goal.TextColor3 = Color3.fromRGB(255,255,255)
-	local secondGoal = {}
-	secondGoal.BackgroundColor3 = Color3.fromRGB(255,255,255)
-	secondGoal.TextColor3 = Color3.fromRGB(0,0,0)
-	local unloadGoal = {}
-	unloadGoal.Transparency = 1
-	unloadGoal.Size = UDim2.new(0,0,0,0)
-	
-	
-	local TweenInfo1 = TweenInfo.new(0.15, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-	
-	local Ui = game.Players.LocalPlayer.PlayerGui.ExternalUI
-	
-	local tween1 = TweenService:Create(button, TweenInfo1, goal)
-	local tween2 = TweenService:Create(button, TweenInfo1, secondGoal)
-	
-	local texts = Ui.CMDBase.uselessshit.ImadminHere
-	
-	local closingInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-	
-	local function onHover()
-		tween1:Play()
-	end
-	
-	local function endHover()
-		tween2:Play()
-	end
-	
-	button.MouseEnter:Connect(onHover)
-	button.MouseLeave:Connect(endHover)
-	
-	local line = Ui.CMDBase.uselessshit.Line
-	
-	local function Notification()
-		game:GetService("StarterGui"):SetCore("SendNotification",{
-			Title = "PasteSoft unloaded!", -- Required
-			Text = "Goodbye", -- Required
-			Icon = "" -- Optional
-		})
-	end
-	
-	local function UnLoad()
-		for _,v in pairs(Ui:GetChildren()) do
-			if v then
-				local tween = TweenService:Create(v, closingInfo, unloadGoal)
-				local tween6 = TweenService:Create(line, closingInfo, unloadGoal)
-				tween6:Play()
-				tween:Play()
-				button:Destroy()
-				texts:Destroy()
-				task.wait(0.20)
-				Notification()
-				v:Destroy()
-			end
-		end
-	end
-	
-	button.MouseButton1Click:Connect(UnLoad)
-end
-coroutine.wrap(DIPU_fake_script)()
-local function ZQHMS_fake_script() -- HideButton.LocalScript 
-	local script = Instance.new('LocalScript', HideButton)
+local esp = { players = {}, screengui = Instance.new("ScreenGui", gethui()), cache = Instance.new("ScreenGui", gethui()), connections = {}}; do 
+    esp.screengui.IgnoreGuiInset = true
+    esp.screengui.Name = "\0"
 
-	local button = script.Parent
-	local frame = game.Players.LocalPlayer.PlayerGui.ExternalUI.CMDBase
-	
-	local function Notification()
-		game:GetService("StarterGui"):SetCore("SendNotification",{
-			Title = "To open UI, press insert", -- Required
-			Text = ":^)", -- Required
-			Icon = "" -- Optional
-		})
-	end
-	
-	button.MouseButton1Click:Connect(function()
-		frame.Visible = false
-		Notification()
-	end)
-end
-coroutine.wrap(ZQHMS_fake_script)()
-local function WJDYJ_fake_script() -- cdisk.LocalScript 
-	local script = Instance.new('LocalScript', cdisk)
+    esp.cache.Enabled = false
 
-	local t = script.Parent
-	
-	while true do
-		task.wait(0.001)
-		t.Position = UDim2.new(-0.002, 0, -0.14, 0)
-		t.Text = "C:\Users\DungeonMaster>_"
-		t.Position = UDim2.new(0.005, 0, -0.14, 0)
-		task.wait(0.7)
-		t.Text = "C:\Users\DungeonMaster>"
-		t.Position = UDim2.new(-0.002, 0, -0.14, 0)
-		task.wait(0.7)
-	end
-end
-coroutine.wrap(WJDYJ_fake_script)()
-local function MXLEM_fake_script() -- functiona.Functions 
-	local script = Instance.new('LocalScript', functiona)
+    -- Functions 
+        function esp:get_screen_pos(world_position)
+            local viewport_size = camera.ViewportSize
+            local local_position = camera.CFrame:pointToObjectSpace(world_position) 
+            
+            local aspect_ratio = viewport_size.x / viewport_size.y
+            local half_height = -local_position.z * math.tan(math.rad(camera.FieldOfView / 2))
+            local half_width = aspect_ratio * half_height
+            
+            local far_plane_corner = Vector3.new(-half_width, half_height, local_position.z)
+            local relative_position = local_position - far_plane_corner
+        
+            local screen_x = relative_position.x / (half_width * 2)
+            local screen_y = -relative_position.y / (half_height * 2)
+        
+            local is_on_screen = -local_position.z > 0 and screen_x >= 0 and screen_x <= 1 and screen_y >= 0 and screen_y <= 1
+            
+            -- returns in pixels as opposed to scale
+            return Vector3.new(screen_x * viewport_size.x, screen_y * viewport_size.y, -local_position.z), is_on_screen
+        end
 
-	local player = game.Players.LocalPlayer
-	local uis = game:GetService("UserInputService")
-	local first = script.Parent.first
-	
-	local status1
-	local status2
-	
-	local function function1()
-		if status1 == true then
-			status1 = false
-			print("aimbot turned off")
-			first.Text = "Anti-Aim [Numpad1]"
-		else
-			status1 = true
-			print("I guess AntiAim turned ON")
-			first.Text = "Anti-Aim [Numpad1] [ON]"
-		end
-	end
-	
-	uis.InputBegan:Connect(function(input)
-		if input.KeyCode == Enum.KeyCode.KeypadOne then
-			function1()
-		end
-	end)
-end
-coroutine.wrap(MXLEM_fake_script)()
-local function BKLOS_fake_script() -- ExternalUI.LocalScript 
-	local script = Instance.new('LocalScript', ExternalUI)
+        function esp:box_solve(torso)
+            if not torso then
+                return nil, nil, nil
+            end
+            
+            local ViewportTop = torso.Position + (torso.CFrame.UpVector * 1.8) + camera.CFrame.UpVector
+            local ViewportBottom = torso.Position - (torso.CFrame.UpVector * 2.5) - camera.CFrame.UpVector
+            local Distance = (torso.Position - camera.CFrame.p).Magnitude
 
-	local ui = script.Parent
-	local uis = game:GetService("UserInputService")
-	
-	uis.InputBegan:Connect(function(input)
-		if input.KeyCode == Enum.KeyCode.Insert then
-			ui.CMDBase.Visible = not ui.CMDBase.Visible
-		end
-	end)
+            local Top, TopIsRendered = esp:get_screen_pos(ViewportTop)
+            local Bottom, BottomIsRendered = esp:get_screen_pos(ViewportBottom)
+
+            local Width = math.max(math.floor(math.abs(Top.X - Bottom.X)), 3)
+            local Height = math.max(math.floor(math.max(math.abs(Bottom.Y - Top.Y), Width / 2)), 3)
+            local BoxSize = Vector2.new(math.floor(math.max(Height / 1.5, Width)), Height)
+            local BoxPosition = Vector2.new(math.floor(Top.X * 0.5 + Bottom.X * 0.5 - BoxSize.X * 0.5), math.floor(math.min(Top.Y, Bottom.Y)))
+            
+            return BoxSize, BoxPosition, TopIsRendered, Distance
+            
+        end
+
+        function esp:create(instance, options)
+            local ins = Instance.new(instance) 
+            
+            for prop, value in options do 
+                ins[prop] = value
+            end
+            
+            return ins 
+        end
+
+        function esp:create_object( player )
+            esp[ player.Name ] = { objects = { }, info = {character = character; humanoid = humanoid}; drawings = { }} 
+            local data = esp[ player.Name ] 
+
+            local objects = data.objects; do
+                objects[ "holder" ] = esp:create( "Frame" , {
+                    Parent = esp.screengui;
+                    Name = "\0";
+                    BackgroundTransparency = 1;
+                    Position = dim2(0, 0, 0, 0);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(0, 0, 0, 0);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(255, 255, 255)
+                });
+                
+                objects[ "box_outline" ] = esp:create( "UIStroke" , {
+                    Parent = (flags["Boxes"] and flags["Box_Type"] ~= "Corner" and objects["holder"]) or esp.cache;
+                    LineJoinMode = Enum.LineJoinMode.Miter
+                });
+                
+                objects[ "name" ] = esp:create( "TextLabel" , {
+                    FontFace = fonts.main;
+                    Parent = objects[ "holder" ];
+                    TextColor3 = flags["Name_Color"].Color;
+                    BorderColor3 = rgb(0, 0, 0);
+                    Text = string.format("%s (@%s)", player.DisplayName, player.Name);
+                    Name = "\0";
+                    TextStrokeTransparency = 0;
+                    AnchorPoint = vec2(0, 1);
+                    Size = dim2(1, 0, 0, 0);
+                    BackgroundTransparency = 1;
+                    Position = dim2(0, 0, 0, -5);
+                    BorderSizePixel = 0;
+                    AutomaticSize = Enum.AutomaticSize.Y;
+                    TextSize = 9;
+                });
+                
+                objects[ "box_handler" ] = esp:create( "Frame" , {
+                    Parent = (flags["Boxes"] and flags["Box_Type"] ~= "Corner" and objects["holder"]) or esp.cache;
+                    Name = "\0";
+                    BackgroundTransparency = 1;
+                    Position = dim2(0, 1, 0, 1);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, -2, 1, -2);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(255, 255, 255)
+                });
+                
+                objects[ "box_color" ] = esp:create( "UIStroke" , {
+                    Color = rgb(255, 255, 255);
+                    LineJoinMode = Enum.LineJoinMode.Miter;
+                    Name = "\0";
+                    Parent = objects[ "box_handler" ]
+                });
+                
+                objects[ "outline" ] = esp:create( "Frame" , {
+                    Parent = objects[ "box_handler" ];
+                    Name = "\0";
+                    BackgroundTransparency = 1;
+                    Position = dim2(0, 1, 0, 1);
+                    BorderColor3 = rgb(0, 0, 0);
+                    Size = dim2(1, -2, 1, -2);
+                    BorderSizePixel = 0;
+                    BackgroundColor3 = rgb(255, 255, 255)
+                });
+                
+                esp:create( "UIStroke" , {
+                    Parent = objects[ "outline" ];
+                    LineJoinMode = Enum.LineJoinMode.Miter
+                });  
+                
+                -- Corner Boxes
+                    objects[ "corners" ] = esp:create( "Frame" , {
+                        Visible = true;
+                        BorderColor3 = rgb(0, 0, 0);
+                        Parent = flags["Boxes"] and flags["Box_Type"] == "Corner" and objects["holder"] or esp.cache;
+                        BackgroundTransparency = 1;
+                        Position = dim2(0, -1, 0, 2);
+                        Name = "\0";
+                        Size = dim2(1, 0, 1, 0);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = rgb(255, 255, 255)
+                    });
+
+                    objects[ "1" ] = esp:create( "Frame" , {
+                        Parent = objects[ "corners" ];
+                        Name = "line";
+                        Position = dim2(0, 0, 0, -2);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(0.4, 0, 0, 3);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = rgb(0, 0, 0)
+                    });
+                    
+                    esp:create( "Frame" , {
+                        Parent = objects[ "1" ];
+                        Position = dim2(0, 1, 0, 1);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(1, -2, 1, -2);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = flags["Box_Color"].Color
+                    });
+                    
+                    objects[ "2" ] = esp:create( "Frame" , {
+                        Parent = objects[ "corners" ];
+                        Name = "line";
+                        Position = dim2(0, 0, 0, 1);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(0, 3, 0.25, 0);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = rgb(0, 0, 0)
+                    });
+                    
+                    esp:create( "Frame" , {
+                        Parent = objects[ "2" ];
+                        Position = dim2(0, 1, 0, -2);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(1, -2, 1, 1);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = flags["Box_Color"].Color
+                    });
+                    
+                    objects[ "3" ] = esp:create( "Frame" , {
+                        AnchorPoint = vec2(1, 0);
+                        Parent = objects[ "corners" ];
+                        Name = "line";
+                        Position = dim2(1, 0, 0, -2);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(0.4, 0, 0, 3);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = rgb(0, 0, 0)
+                    });
+                    
+                    esp:create( "Frame" , {
+                        Parent = objects[ "3" ];
+                        Position = dim2(0, 1, 0, 1);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(1, -2, 1, -2);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = flags["Box_Color"].Color
+                    });
+                    
+                    objects[ "4" ] = esp:create( "Frame" , {
+                        AnchorPoint = vec2(1, 0);
+                        Parent = objects[ "corners" ];
+                        Name = "line";
+                        Position = dim2(1, 0, 0, 1);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(0, 3, 0.25, 0);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = rgb(0, 0, 0)
+                    });
+                    
+                    esp:create( "Frame" , {
+                        Parent = objects[ "4" ];
+                        Position = dim2(0, 1, 0, -2);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(1, -2, 1, 1);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = flags["Box_Color"].Color
+                    });
+                    
+                    objects[ "5" ] = esp:create( "Frame" , {
+                        AnchorPoint = vec2(0, 1);
+                        Parent = objects[ "corners" ];
+                        Name = "line";
+                        Position = dim2(0, 0, 1, -2);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(0.4, 0, 0, 3);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = rgb(0, 0, 0)
+                    });
+                    
+                    esp:create( "Frame" , {
+                        Parent = objects[ "5" ];
+                        Position = dim2(0, 1, 0, 1);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(1, -2, 1, -2);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = flags["Box_Color"].Color
+                    });
+                    
+                    objects[ "6" ] = esp:create( "Frame" , {
+                        BorderColor3 = rgb(0, 0, 0);
+                        Rotation = 180;
+                        Parent = objects[ "corners" ];
+                        Name = "line";
+                        Position = dim2(0, 0, 1, -5);
+                        AnchorPoint = vec2(0, 1);
+                        Size = dim2(0, 3, 0.25, 0);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = rgb(0, 0, 0)
+                    });
+                    
+                    esp:create( "Frame" , {
+                        Parent = objects[ "6" ];
+                        Position = dim2(0, 1, 0, -2);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(1, -2, 1, 1);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = flags["Box_Color"].Color
+                    });
+                    
+                    objects[ "7" ] = esp:create( "Frame" , {
+                        AnchorPoint = vec2(1, 1);
+                        Parent = objects[ "corners" ];
+                        Name = "line";
+                        Position = dim2(1, 0, 1, -2);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(0.4, 0, 0, 3);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = rgb(0, 0, 0)
+                    });
+                    
+                    esp:create( "Frame" , {
+                        Parent = objects[ "7" ];
+                        Position = dim2(0, 1, 0, 1);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(1, -2, 1, -2);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = flags["Box_Color"].Color
+                    });
+                    
+                    objects[ "7" ] = esp:create( "Frame" , {
+                        BorderColor3 = rgb(0, 0, 0);
+                        Rotation = 180;
+                        Parent = objects[ "corners" ];
+                        Name = "line";
+                        Position = dim2(1, 0, 1, -5);
+                        AnchorPoint = vec2(1, 1);
+                        Size = dim2(0, 3, 0.25, 0);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = rgb(0, 0, 0)
+                    });
+                    
+                    esp:create( "Frame" , {
+                        Parent = objects[ "7" ];
+                        Position = dim2(0, 1, 0, -2);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(1, -2, 1, 1);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = flags["Box_Color"].Color
+                    });
+                -- 
+                
+                -- Healthbar
+                    objects[ "healthbar_holder" ] = esp:create( "Frame" , {
+                        AnchorPoint = vec2(1, 0);
+                        Parent = flags["Healthbar"] and objects[ "holder" ] or esp.cache;
+                        Name = "\0";
+                        Position = dim2(0, -5, 0, -1);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(0, 4, 1, 2);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = rgb(0, 0, 0)
+                    });
+                    
+                    objects[ "healthbar" ] = esp:create( "Frame" , {
+                        Parent = objects[ "healthbar_holder" ];
+                        Name = "\0";
+                        Position = dim2(0, 1, 0, 1);
+                        BorderColor3 = rgb(0, 0, 0);
+                        Size = dim2(1, -2, 1, -2);
+                        BorderSizePixel = 0;
+                        BackgroundColor3 = rgb(255, 255, 255)
+                    });
+                -- 
+
+                -- Distance esp
+                    objects[ "distance" ] = esp:create( "TextLabel" , {
+                        FontFace = fonts.main;
+                        TextColor3 = flags["Distance_Color"].Color;
+                        BorderColor3 = rgb(0, 0, 0);
+                        Text = "127st";
+                        Parent = flags[ "Distance" ] and objects[ "holder" ] or esp.cache;
+                        TextStrokeTransparency = 0;
+                        Name = "\0";
+                        Size = dim2(1, 0, 0, 0);
+                        BackgroundTransparency = 1;
+                        Position = dim2(0, 0, 1, 5);
+                        BorderSizePixel = 0;
+                        AutomaticSize = Enum.AutomaticSize.Y;
+                        TextSize = 9;
+                    });                
+                -- 
+
+                -- Weapon esp
+                    objects[ "weapon" ] = esp:create( "TextLabel" , {
+                        FontFace = fonts.main;
+                        TextColor3 = flags["Weapon_Color"].Color;
+                        BorderColor3 = rgb(0, 0, 0);
+                        Text = "[ak-47]";
+                        Parent = esp.cache;
+                        TextStrokeTransparency = 0;
+                        Name = "\0";
+                        Size = dim2(1, 0, 0, 0);
+                        BackgroundTransparency = 1;
+                        Position = dim2(0, 0, 1, 19);
+                        BorderSizePixel = 0;
+                        AutomaticSize = Enum.AutomaticSize.Y;
+                        TextSize = 9;
+                    });
+                -- 
+                
+                -- Skeleton Lines
+                    
+                    for _, bone in bones do
+                        local line = Drawing.new("Line")
+                        line.Color = flags["Skeletons_Color"].Color;
+                        line.Thickness = 1;
+                        line.Visible = false;
+
+                        data.drawings[#data.drawings + 1] = line;
+                    end
+                -- 
+            end
+            
+            do --[[ data functions ]]
+                data.health_changed = function( value )
+                    if not flags[ "Healthbar" ] then 
+                        return 
+                    end
+
+                    local selected_layout = objects[ player.Name ]
+                    local humanoid = data.info.humanoid
+                    
+                    local multiplier = value / humanoid.MaxHealth
+                    local color = flags[ "Health_Low" ].Color:Lerp( flags["Health_High"].Color, multiplier )
+                    
+                    objects[ "healthbar" ].Size = UDim2.new(1, -2, multiplier, -2)
+                    objects[ "healthbar" ].Position = UDim2.new(0, 1, 1 - multiplier, 1)
+                    objects[ "healthbar" ].BackgroundColor3 = color
+                end
+
+                data.tool_added = function( item )
+                    if not item:IsA("Tool") then 
+                        return 
+                    end 
+
+                    local exists = data.info.character:FindFirstChild(item.Name) 
+                    print(exists, item.Name)
+                    objects[ "weapon" ].Text = item.Name
+                    objects[ "weapon" ].Parent = exists and objects[ "holder" ] or esp.cache
+                end
+
+                data.refresh_offsets = function()
+                    local offset = 5; 
+
+                    if objects["distance"].Parent == objects[ "holder" ] then 
+                        offset += 5
+                        objects[ "weapon" ].Position = dim2(0, 0, 1, offset)
+                    end 
+
+                    if objects[ "weapon" ].Parent == objects[ "holder" ] then 
+                        offset += 5
+                        objects[ "weapon" ].Position = dim2(0, 0, 1, offset)
+                    end 
+                end 
+
+                data.refresh_descendants = function() 
+                    local character = player.Character or player.CharacterAdded:Wait()
+                    local humanoid = character:WaitForChild( "Humanoid" )
+                    
+                    data.info.character = character
+                    data.info.humanoid = humanoid
+                    data.info.rootpart = rootpart
+
+                    humanoid.HealthChanged:Connect( data.health_changed )
+
+                    character.ChildAdded:Connect( data.tool_added )
+                    character.ChildRemoved:Connect( data.tool_added )
+
+                    data.health_changed( data.info.humanoid.Health )
+                end
+            end 
+            
+            do --[[ init / connections ]]  
+                data.refresh_descendants()
+
+                data.health_changed( data.info.humanoid.Health )
+
+                player.CharacterAdded:Connect( data.refresh_descendants )
+
+                local tool = player.Character:FindFirstChildOfClass("Tool")
+
+                if tool then
+                    data.tool_added( tool )
+                end 
+            end 
+        end
+
+        function esp:remove_object(player)
+            local holder = esp[player.Name]
+
+            if not holder then return end 
+
+            local objects = holder.objects
+ 
+            for _, line in holder.drawings do 
+                line:Remove()
+            end
+            
+            objects[ "holder" ]:Destroy() 
+            esp[player.Name] = nil
+        end
+        
+        function esp.refresh_elements( )
+            for _,v in players:GetPlayers() do 
+                if v == players.LocalPlayer then 
+                    continue
+                end
+                print("1")
+                
+                if not v.Character then 
+                    continue 
+                end 
+                print("2")
+
+                local path = esp[v.Name]
+                local objects = path and path.objects
+                
+                if not objects then 
+                    continue 
+                end
+                print("3")
+                objects.holder.Parent = flags["Enabled"] and esp.screengui or esp.cache
+
+                objects[ "name" ].Parent = flags["Names"] and objects["holder"] or esp.cache
+                objects[ "name" ].TextColor3 = flags["Name_Color"].Color
+                
+                local is_corner = flags[ "Box_Type" ] == "Corner"
+
+                if flags["Boxes"] then 
+                    objects[ "corners" ].Parent = (is_corner and objects["holder"]) or esp.cache
+                    objects[ "box_handler" ].Parent = (is_corner and esp.cache or objects[ "holder" ])
+                    objects[ "box_outline" ].Parent = (is_corner and esp.cache or objects[ "holder" ]) 
+                else
+                    objects[ "corners" ].Parent =  esp.cache
+                    objects[ "box_handler" ].Parent = esp.cache
+                    objects[ "box_outline" ].Parent = esp.cache
+                end 
+                print("4")
+                objects[ "box_color" ].Color = flags["Box_Color"].Color 
+
+                for _, corner in objects[ "corners" ]:GetChildren() do
+                    corner.Frame.BackgroundColor3 = flags["Box_Color"].Color
+                end
+                print("5")
+
+                for _, line in path.drawings do
+                    line.Color = flags["Skeletons_Color"].Color
+                    line.Visible = flags["Skeletons"]
+                end
+
+                objects[ "healthbar_holder" ].Parent = flags[ "Healthbar" ] and objects[ "holder" ] or esp.cache
+                print("6")
+                objects[ "weapon" ].TextColor3 = flags["Weapon_Color"].Color
+                objects[ "weapon" ].Parent = flags["Weapon"] and v.Character:FindFirstChildOfClass("Tool") and objects[ "holder" ] or esp.cache
+
+                objects[ "distance" ].TextColor3 = flags["Distance_Color"].Color
+                objects[ "distance" ].Parent = flags["Distance"] and objects[ "holder" ] or esp.cache
+            end
+        end
+
+        esp.connection = run.RenderStepped:Connect(function()
+            if not flags["Enabled"] then 
+                return
+            end
+
+            for _, player in players:GetPlayers() do 
+                local data = esp[player.Name]
+
+                if not data then 
+                    continue 
+                end 
+
+                local character = data.info.character
+                local humanoid = data.info.humanoid 
+                
+                if not (character or humanoid) then 
+                    continue 
+                end 
+
+                local objects = data and data.objects 
+
+                if not objects then 
+                    continue 
+                end 
+
+                local box_size, box_pos, on_screen, distance = esp:box_solve(humanoid.RootPart)
+                local holder = objects[ "holder" ]
+
+                if holder.Visible ~= on_screen then 
+                    holder.Visible = on_screen
+                end 
+
+                -- Skeletons 
+                    if flags["Skeletons"] and character:FindFirstChild("UpperTorso") then 
+                        for i = 1, #bones do
+                            local origin, destination = bones[i][1], bones[i][2]
+
+                            if not data.drawings[i] then 
+                                continue  
+                            end 
+
+                            local path = data.drawings[i]
+
+                            local origin_3d = character:FindFirstChild(origin) 
+                            local destination_3d = character:FindFirstChild(destination) 
+
+                            if origin_3d and destination_3d then 
+                                local origin_2d, on_screen_start = esp:get_screen_pos(origin_3d.Position)
+                                local destination_2d, on_screen_end = esp:get_screen_pos(destination_3d.Position)
+                                
+                                if on_screen_start and on_screen_end then 
+                                    path.Visible = true
+                                    path.From = Vector2.new(origin_2d.X, origin_2d.Y)
+                                    path.To = Vector2.new(destination_2d.X, destination_2d.Y)
+                                else
+                                    path.Visible = false
+                                end 
+                            end
+                        end 
+                    end 
+                -- 
+
+                if not on_screen then
+                    continue
+                end 
+                
+                local pos = dim_offset(box_pos.X, box_pos.Y) -- silly sanity check
+                if pos ~= holder.Position then 
+                    holder.Position = dim_offset(box_pos.X, box_pos.Y)
+                end 
+
+                local size = dim_offset(box_size.X, box_size.Y) -- more silly sanity checks
+                if size ~= holder.Size then 
+                    holder.Size = size
+                end 
+
+                local distance_label = objects[ "distance" ]
+                if distance_label.Text ~= tostring( math.round(distance) )  .. "st" then 
+                    distance_label.Text = tostring( math.round(distance) ) .. "st"
+                end 
+
+            end
+        end)
+
+        function esp:unload() 
+            for _, player in players:GetPlayers() do 
+                esp:remove_object(player)
+            end 
+
+            esp.connection:Disconnect() 
+            esp.player_added:Disconnect() 
+            esp.player_removed:Disconnect() 
+
+            esp.cache:Destroy() 
+            esp.screengui:Destroy()
+
+            esp = nil
+        end 
+    -- 
 end
-coroutine.wrap(BKLOS_fake_script)()
+
+for _,v in players:GetPlayers() do 
+    if v ~= players.LocalPlayer then 
+        esp:create_object(v)
+    end 
+end 
+
+esp.player_added = players.PlayerAdded:Connect(function(v)
+    esp:create_object(v)
+end)
+
+esp.player_removed = players.PlayerRemoving:Connect(function(v)
+    esp:remove_object(v)
+end)
+
+flags = { -- basically a substitute for ur ui flags (flags["wahdiuawdhwa"])
+    ["Enabled"] = true;
+    ["Names"] = true; 
+    ["Name_Color"] = { Color = rgb(255, 255, 255) };
+    ["Boxes"] = true;
+    ["Box_Type"] = "Normal";
+    ["Box_Color"] = { Color = rgb(255, 255, 255) };
+    ["Healthbar"] = true; 
+    ["Health_High"] = { Color = rgb(0, 255, 0) };
+    ["Health_Low"] = { Color = rgb(255, 0, 0) };
+    ["Distance"] = true;
+    ["Weapon"] = true;
+    ["Skeletons"] = true;
+    ["Skeletons_Color"] = { Color = rgb(255, 255, 255) };
+    ["Distance_Color"] = { Color = rgb(255, 255, 255) };
+    ["Weapon_Color"] = { Color = rgb(255, 255, 255) }
+}; 
+task.wait()
+esp.refresh_elements()
