@@ -1,5 +1,6 @@
 --[[
-    Phantom Hook UI Library | Enhanced with Config System & Custom Hover Crosshair
+    Phantom Hook UI Library | Enhanced Edition
+    Includes: AddButton Method, Built-in Config System & Custom Hover Crosshair
 --]]
 
 local UserInputService = game:GetService("UserInputService")
@@ -23,7 +24,7 @@ local COLOR_TEXT_INACTIVE = Color3.fromRGB(126, 125, 138)
 local COLOR_ACCENT = Color3.fromRGB(152, 152, 168)
 local COLOR_BORDER = Color3.fromRGB(57, 58, 66)
 
--- Helper: Dragging
+-- Helper: Fluid Dragging Logic
 local function makeDraggable(handle, frame)
 	local dragging, dragInput, dragStart, startPos
 
@@ -82,7 +83,7 @@ function Library.CreateWindow(titleText, configFileName)
 	local localPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
 	ScreenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
-	-- Custom Hover Crosshair (Asset 10639770199)
+	-- Custom Hover Crosshair (Asset ID: 10639770199)
 	local CustomCrosshair = Instance.new("ImageLabel", ScreenGui)
 	CustomCrosshair.Name = "CustomCrosshair"
 	CustomCrosshair.BackgroundTransparency = 1
@@ -101,7 +102,7 @@ function Library.CreateWindow(titleText, configFileName)
 	MainFrame.Size = UDim2.new(0, 520, 0, 305)
 	MainFrame.Position = UDim2.new(0.5, -260, 0.5, -152)
 
-	-- Hover Detection for Crosshair
+	-- Hover Detection for Custom Crosshair
 	MainFrame.MouseEnter:Connect(function()
 		CustomCrosshair.Visible = true
 		UserInputService.MouseIconEnabled = false
@@ -141,7 +142,7 @@ function Library.CreateWindow(titleText, configFileName)
 	Title.TextSize = 14
 	Title.TextXAlignment = Enum.TextXAlignment.Left
 
-	-- Window Controls
+	-- Window Controls (Minimize Button)
 	local WindowControls = Instance.new("Frame", TopBar)
 	WindowControls.Name = "WindowControls"
 	WindowControls.BackgroundTransparency = 1
@@ -185,7 +186,7 @@ function Library.CreateWindow(titleText, configFileName)
 	makeDraggable(TopBar, MainFrame)
 
 	-- =========================================================================
-	-- Config Engine
+	-- Config Methods
 	-- =========================================================================
 	function Window:SaveConfig()
 		if not writefile then return end
@@ -294,6 +295,7 @@ function Library.CreateWindow(titleText, configFileName)
 			SectionLayout.Padding = UDim.new(0, 10)
 			SectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
+			-- Separator Line
 			function Section:AddSeparator()
 				local Sep = Instance.new("Frame", SectionFrame)
 				Sep.Name = "Separator"
@@ -302,7 +304,31 @@ function Library.CreateWindow(titleText, configFileName)
 				Sep.Size = UDim2.new(1, 0, 0, 1)
 			end
 
-			-- Toggle with Auto-Save
+			-- Action Button
+			function Section:AddButton(text, callback)
+				callback = callback or function() end
+
+				local BtnFrame = Instance.new("Frame", SectionFrame)
+				BtnFrame.Name = "ButtonFrame"
+				BtnFrame.BackgroundTransparency = 1
+				BtnFrame.Size = UDim2.new(1, 0, 0, 22)
+
+				local Button = Instance.new("TextButton", BtnFrame)
+				Button.Name = "Button"
+				Button.BackgroundColor3 = COLOR_SURFACE
+				Button.BorderSizePixel = 0
+				Button.FontFace = FONT_BOLD
+				Button.Text = text
+				Button.TextColor3 = COLOR_TEXT_ACTIVE
+				Button.TextSize = 12
+				Button.Size = UDim2.new(1, 0, 1, 0)
+
+				Button.MouseButton1Click:Connect(function()
+					task.spawn(pcall, callback)
+				end)
+			end
+
+			-- Toggle Control
 			function Section:AddToggle(text, default, callback)
 				local configId = name .. "_" .. text
 				local state = Window.ConfigData[configId] ~= nil and Window.ConfigData[configId] or (default or false)
@@ -353,7 +379,7 @@ function Library.CreateWindow(titleText, configFileName)
 				return { Set = setToggle }
 			end
 
-			-- Keybind with Auto-Save
+			-- Keybind Control
 			function Section:AddKeybind(text, defaultKey, callback)
 				local configId = name .. "_" .. text
 				local savedKeyName = Window.ConfigData[configId]
@@ -414,7 +440,7 @@ function Library.CreateWindow(titleText, configFileName)
 				Window.ConfigElements[configId] = { Set = setKey }
 			end
 
-			-- Slider with Auto-Save
+			-- Slider Control
 			function Section:AddSlider(text, min, max, default, callback)
 				min = min or 0
 				max = max or 100
@@ -498,7 +524,7 @@ function Library.CreateWindow(titleText, configFileName)
 				Window.ConfigElements[configId] = { Set = setSlider }
 			end
 
-			-- Dropdown with Auto-Save
+			-- Dropdown Control
 			function Section:AddDropdown(options, default, callback)
 				options = options or {}
 				local textLabelName = "Dropdown_" .. (#SectionFrame:GetChildren())
@@ -568,7 +594,7 @@ function Library.CreateWindow(titleText, configFileName)
 						OptBtn.Size = UDim2.new(1, 0, 0, 18)
 						OptBtn.Text = opt
 						OptBtn.TextSize = 12
-						OptBtn.TextColor3 = (opt == selected) and COLOR_TEXT_ACTIVE or COLOR_TEXT_INACTIVE
+						OptBtn.TextColor3 = (opt == selected) Featured and COLOR_TEXT_ACTIVE or COLOR_TEXT_INACTIVE
 
 						OptBtn.MouseButton1Click:Connect(function()
 							setOption(opt)
