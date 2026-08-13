@@ -1,15 +1,16 @@
 --[[
-    Phantom Hook UI Library
+    Phantom Hook UI Library | Enhanced with Config System & Custom Hover Crosshair
 --]]
 
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 
 local Library = {}
 Library.__index = Library
 
--- Global Design Tokens & Typography
+-- Design Tokens & Typography
 local TWEEN_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 local FONT_BOLD = Font.new("rbxasset://fonts/families/Sarpanch.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
 local FONT_REGULAR = Font.new("rbxasset://fonts/families/Sarpanch.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
@@ -22,7 +23,7 @@ local COLOR_TEXT_INACTIVE = Color3.fromRGB(126, 125, 138)
 local COLOR_ACCENT = Color3.fromRGB(152, 152, 168)
 local COLOR_BORDER = Color3.fromRGB(57, 58, 66)
 
--- Helper: Fluid Dragging Logic
+-- Helper: Dragging
 local function makeDraggable(handle, frame)
 	local dragging, dragInput, dragStart, startPos
 
@@ -61,11 +62,15 @@ local function makeDraggable(handle, frame)
 	end)
 end
 
-function Library.CreateWindow(titleText)
+function Library.CreateWindow(titleText, configFileName)
+	configFileName = configFileName or "PhantomHook_Config.json"
+
 	local Window = {
 		Tabs = {},
 		CurrentTab = nil,
-		Minimized = false
+		Minimized = false,
+		ConfigData = {},
+		ConfigElements = {}
 	}
 
 	-- Root ScreenGui
@@ -73,19 +78,45 @@ function Library.CreateWindow(titleText)
 	ScreenGui.Name = "PhantomHookUI_" .. math.random(1000, 9999)
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	ScreenGui.ResetOnSpawn = false
-	
-	-- Protection against LocalPlayer load delays
+
 	local localPlayer = Players.LocalPlayer or Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
 	ScreenGui.Parent = localPlayer:WaitForChild("PlayerGui")
 
-	-- Main Canvas Container
+	-- Custom Hover Crosshair (Asset 10639770199)
+	local CustomCrosshair = Instance.new("ImageLabel", ScreenGui)
+	CustomCrosshair.Name = "CustomCrosshair"
+	CustomCrosshair.BackgroundTransparency = 1
+	CustomCrosshair.Size = UDim2.new(0, 32, 0, 32)
+	CustomCrosshair.Image = "rbxassetid://10639770199"
+	CustomCrosshair.ZIndex = 999
+	CustomCrosshair.Visible = false
+	CustomCrosshair.AnchorPoint = Vector2.new(0.5, 0.5)
+
+	-- Main Window Frame
 	local MainFrame = Instance.new("Frame", ScreenGui)
 	MainFrame.Name = "Window"
 	MainFrame.BackgroundColor3 = COLOR_PRIMARY
 	MainFrame.BorderSizePixel = 0
-	MainFrame.ClipsDescendants = true
+	MainFrame.ClipsDescendants = false
 	MainFrame.Size = UDim2.new(0, 520, 0, 305)
 	MainFrame.Position = UDim2.new(0.5, -260, 0.5, -152)
+
+	-- Hover Detection for Crosshair
+	MainFrame.MouseEnter:Connect(function()
+		CustomCrosshair.Visible = true
+		UserInputService.MouseIconEnabled = false
+	end)
+
+	MainFrame.MouseLeave:Connect(function()
+		CustomCrosshair.Visible = false
+		UserInputService.MouseIconEnabled = true
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if CustomCrosshair.Visible and input.UserInputType == Enum.UserInputType.MouseMovement then
+			CustomCrosshair.Position = UDim2.new(0, input.Position.X, 0, input.Position.Y)
+		end
+	end)
 
 	-- Top Bar
 	local TopBar = Instance.new("Frame", MainFrame)
@@ -110,7 +141,7 @@ function Library.CreateWindow(titleText)
 	Title.TextSize = 14
 	Title.TextXAlignment = Enum.TextXAlignment.Left
 
-	-- Action Controls (Minimize / Close)
+	-- Window Controls
 	local WindowControls = Instance.new("Frame", TopBar)
 	WindowControls.Name = "WindowControls"
 	WindowControls.BackgroundTransparency = 1
@@ -153,8 +184,33 @@ function Library.CreateWindow(titleText)
 
 	makeDraggable(TopBar, MainFrame)
 
-	-- Window Destruction / Cleanup
+	-- =========================================================================
+	-- Config Engine
+	-- =========================================================================
+	function Window:SaveConfig()
+		if not writefile then return end
+		local encodedData = HttpService:JSONEncode(Window.ConfigData)
+		writefile(configFileName, encodedData)
+	end
+
+	function Window:LoadConfig()
+		if not (readfile and isfile and isfile(configFileName)) then return end
+		local success, result = pcall(function()
+			return HttpService:JSONDecode(readfile(configFileName))
+		end)
+
+		if success and type(result) == "table" then
+			Window.ConfigData = result
+			for id, value in pairs(Window.ConfigData) do
+				if Window.ConfigElements[id] then
+					Window.ConfigElements[id].Set(value)
+				end
+			end
+		end
+	end
+
 	function Window:Destroy()
+		UserInputService.MouseIconEnabled = true
 		ScreenGui:Destroy()
 	end
 
@@ -209,7 +265,7 @@ function Library.CreateWindow(titleText)
 			activateTab()
 		end
 
-		-- Create Section Block
+		-- Create Section
 		function Tab:CreateSection()
 			local Section = {}
 
@@ -238,7 +294,6 @@ function Library.CreateWindow(titleText)
 			SectionLayout.Padding = UDim.new(0, 10)
 			SectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-			-- Separator
 			function Section:AddSeparator()
 				local Sep = Instance.new("Frame", SectionFrame)
 				Sep.Name = "Separator"
@@ -247,9 +302,10 @@ function Library.CreateWindow(titleText)
 				Sep.Size = UDim2.new(1, 0, 0, 1)
 			end
 
-			-- Toggle
+			-- Toggle with Auto-Save
 			function Section:AddToggle(text, default, callback)
-				local state = default or false
+				local configId = name .. "_" .. text
+				local state = Window.ConfigData[configId] ~= nil and Window.ConfigData[configId] or (default or false)
 				callback = callback or function() end
 
 				local ToggleFrame = Instance.new("Frame", SectionFrame)
@@ -280,6 +336,9 @@ function Library.CreateWindow(titleText)
 
 				local function setToggle(val)
 					state = val
+					Window.ConfigData[configId] = state
+					Window:SaveConfig()
+
 					TweenService:Create(ToggleBtn, TWEEN_INFO, {
 						BackgroundColor3 = state and COLOR_ACCENT or COLOR_SURFACE
 					}):Play()
@@ -290,12 +349,15 @@ function Library.CreateWindow(titleText)
 					setToggle(not state)
 				end)
 
+				Window.ConfigElements[configId] = { Set = setToggle }
 				return { Set = setToggle }
 			end
 
-			-- Keybind (Supports Keys and Mouse Buttons)
+			-- Keybind with Auto-Save
 			function Section:AddKeybind(text, defaultKey, callback)
-				local currentKey = defaultKey or Enum.KeyCode.E
+				local configId = name .. "_" .. text
+				local savedKeyName = Window.ConfigData[configId]
+				local currentKey = savedKeyName and Enum.KeyCode[savedKeyName] or (defaultKey or Enum.KeyCode.E)
 				local listening = false
 				callback = callback or function() end
 
@@ -326,6 +388,13 @@ function Library.CreateWindow(titleText)
 				KeyBtn.TextSize = 12
 				KeyBtn.Size = UDim2.new(0.4, 0, 1, 0)
 
+				local function setKey(key)
+					currentKey = key
+					KeyBtn.Text = currentKey.Name
+					Window.ConfigData[configId] = currentKey.Name
+					Window:SaveConfig()
+				end
+
 				KeyBtn.MouseButton1Click:Connect(function()
 					listening = true
 					KeyBtn.Text = "..."
@@ -334,28 +403,23 @@ function Library.CreateWindow(titleText)
 				UserInputService.InputBegan:Connect(function(input, gpe)
 					if listening then
 						if input.UserInputType == Enum.UserInputType.Keyboard then
-							currentKey = input.KeyCode
-						elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-							currentKey = Enum.UserInputType.MouseButton1
-						elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-							currentKey = Enum.UserInputType.MouseButton2
+							setKey(input.KeyCode)
 						end
-
-						KeyBtn.Text = currentKey.Name
 						listening = false
-					elseif not gpe then
-						if input.KeyCode == currentKey or input.UserInputType == currentKey then
-							task.spawn(pcall, callback, currentKey)
-						end
+					elseif not gpe and input.KeyCode == currentKey then
+						task.spawn(pcall, callback, currentKey)
 					end
 				end)
+
+				Window.ConfigElements[configId] = { Set = setKey }
 			end
 
-			-- Slider
+			-- Slider with Auto-Save
 			function Section:AddSlider(text, min, max, default, callback)
 				min = min or 0
 				max = max or 100
-				default = math.clamp(default or min, min, max)
+				local configId = name .. "_" .. text
+				local value = Window.ConfigData[configId] or math.clamp(default or min, min, max)
 				callback = callback or function() end
 
 				local SliderFrame = Instance.new("Frame", SectionFrame)
@@ -385,31 +449,36 @@ function Library.CreateWindow(titleText)
 				Indicator.Name = "Indicator"
 				Indicator.BackgroundColor3 = COLOR_ACCENT
 				Indicator.BorderSizePixel = 0
-				Indicator.Size = UDim2.new(0, 0, 1, 0)
 
 				local ValueLabel = Instance.new("TextLabel", BarBg)
 				ValueLabel.BackgroundTransparency = 1
 				ValueLabel.FontFace = FONT_BOLD
-				ValueLabel.Text = tostring(default)
 				ValueLabel.TextColor3 = COLOR_TEXT_ACTIVE
 				ValueLabel.TextSize = 11
 				ValueLabel.Size = UDim2.new(1, 0, 1, 0)
 
-				local dragging = false
+				local function setSlider(val)
+					value = math.clamp(val, min, max)
+					Window.ConfigData[configId] = value
+					Window:SaveConfig()
 
-				local function update(input)
+					local percent = (value - min) / (max - min)
+					TweenService:Create(Indicator, TWEEN_INFO, { Size = UDim2.new(percent, 0, 1, 0) }):Play()
+					ValueLabel.Text = tostring(value)
+					task.spawn(pcall, callback, value)
+				end
+
+				local dragging = false
+				local function updateFromInput(input)
 					local percent = math.clamp((input.Position.X - BarBg.AbsolutePosition.X) / BarBg.AbsoluteSize.X, 0, 1)
 					local val = math.floor(min + (max - min) * percent)
-
-					TweenService:Create(Indicator, TWEEN_INFO, { Size = UDim2.new(percent, 0, 1, 0) }):Play()
-					ValueLabel.Text = tostring(val)
-					task.spawn(pcall, callback, val)
+					setSlider(val)
 				end
 
 				BarBg.InputBegan:Connect(function(input)
 					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 						dragging = true
-						update(input)
+						updateFromInput(input)
 					end
 				end)
 
@@ -421,19 +490,20 @@ function Library.CreateWindow(titleText)
 
 				UserInputService.InputChanged:Connect(function(input)
 					if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-						update(input)
+						updateFromInput(input)
 					end
 				end)
 
-				-- Initial Render State
-				local initPercent = (default - min) / (max - min)
-				Indicator.Size = UDim2.new(initPercent, 0, 1, 0)
+				setSlider(value)
+				Window.ConfigElements[configId] = { Set = setSlider }
 			end
 
-			-- Dropdown
+			-- Dropdown with Auto-Save
 			function Section:AddDropdown(options, default, callback)
 				options = options or {}
-				local selected = default or options[1] or "Select..."
+				local textLabelName = "Dropdown_" .. (#SectionFrame:GetChildren())
+				local configId = name .. "_" .. textLabelName
+				local selected = Window.ConfigData[configId] or (default or options[1] or "Select...")
 				callback = callback or function() end
 
 				local DropFrame = Instance.new("Frame", SectionFrame)
@@ -460,7 +530,6 @@ function Library.CreateWindow(titleText)
 				Icon.Size = UDim2.new(0, 12, 0, 12)
 				Icon.Position = UDim2.new(1, -15, 0.5, -6)
 
-				-- Screen-anchored popover for overflow isolation
 				local DropMenu = Instance.new("Frame", ScreenGui)
 				DropMenu.Name = "DropdownMenu"
 				DropMenu.BackgroundColor3 = COLOR_SURFACE
@@ -478,6 +547,14 @@ function Library.CreateWindow(titleText)
 				MenuLayout.Padding = UDim.new(0, 2)
 				MenuLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
+				local function setOption(val)
+					selected = val
+					DropBtn.Text = selected
+					Window.ConfigData[configId] = selected
+					Window:SaveConfig()
+					task.spawn(pcall, callback, selected)
+				end
+
 				local function refreshOptions()
 					for _, item in pairs(DropMenu:GetChildren()) do
 						if item:IsA("TextButton") then item:Destroy() end
@@ -494,11 +571,9 @@ function Library.CreateWindow(titleText)
 						OptBtn.TextColor3 = (opt == selected) and COLOR_TEXT_ACTIVE or COLOR_TEXT_INACTIVE
 
 						OptBtn.MouseButton1Click:Connect(function()
-							selected = opt
-							DropBtn.Text = selected
+							setOption(opt)
 							DropMenu.Visible = false
 							refreshOptions()
-							task.spawn(pcall, callback, selected)
 						end)
 					end
 				end
@@ -515,13 +590,8 @@ function Library.CreateWindow(titleText)
 					end
 				end)
 
-				return {
-					Set = function(val)
-						selected = val
-						DropBtn.Text = val
-						refreshOptions()
-					end
-				}
+				Window.ConfigElements[configId] = { Set = setOption }
+				return { Set = setOption }
 			end
 
 			return Section
@@ -529,6 +599,11 @@ function Library.CreateWindow(titleText)
 
 		return Tab
 	end
+
+	-- Auto Load Settings on Execution
+	task.spawn(function()
+		Window:LoadConfig()
+	end)
 
 	return Window
 end
