@@ -1,30 +1,35 @@
 --[[
-    Phantom Hook UI Library | Enhanced Edition
-    Includes: AddButton Method, Built-in Config System & Custom Hover Crosshair
+    Phantom Hook UI Library | Modern Smooth Edition
+    Features: Ultra-Smooth Tweens, Modern Design Tokens, Integrated Config & Custom Crosshair
 --]]
 
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
 local Library = {}
 Library.__index = Library
 
--- Design Tokens & Typography
-local TWEEN_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+-- Design Tokens & Smooth Animation Specs
+local TWEEN_FAST = TweenInfo.new(0.15, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local TWEEN_SMOOTH = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local TWEEN_BOUNCE = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
 local FONT_BOLD = Font.new("rbxasset://fonts/families/Sarpanch.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-local FONT_REGULAR = Font.new("rbxasset://fonts/families/Sarpanch.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+local FONT_REGULAR = Font.new("rbxasset://fonts/families/Sarpanch.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal)
 
-local COLOR_PRIMARY = Color3.fromRGB(29, 31, 35)
-local COLOR_SECTION = Color3.fromRGB(25, 28, 31)
-local COLOR_SURFACE = Color3.fromRGB(38, 39, 45)
+local COLOR_PRIMARY = Color3.fromRGB(18, 20, 24)
+local COLOR_SECTION = Color3.fromRGB(24, 26, 32)
+local COLOR_SURFACE = Color3.fromRGB(34, 37, 45)
+local COLOR_SURFACE_HOVER = Color3.fromRGB(45, 49, 60)
 local COLOR_TEXT_ACTIVE = Color3.fromRGB(255, 255, 255)
-local COLOR_TEXT_INACTIVE = Color3.fromRGB(126, 125, 138)
-local COLOR_ACCENT = Color3.fromRGB(152, 152, 168)
-local COLOR_BORDER = Color3.fromRGB(57, 58, 66)
+local COLOR_TEXT_INACTIVE = Color3.fromRGB(140, 143, 158)
+local COLOR_ACCENT = Color3.fromRGB(120, 130, 230)
+local COLOR_BORDER = Color3.fromRGB(48, 52, 64)
 
--- Helper: Fluid Dragging Logic
+-- Helper: Fluid Dragging Logic with Smooth Interpolation
 local function makeDraggable(handle, frame)
 	local dragging, dragInput, dragStart, startPos
 
@@ -51,7 +56,7 @@ local function makeDraggable(handle, frame)
 	UserInputService.InputChanged:Connect(function(input)
 		if input == dragInput and dragging then
 			local delta = input.Position - dragStart
-			TweenService:Create(frame, TWEEN_INFO, {
+			TweenService:Create(frame, TWEEN_SMOOTH, {
 				Position = UDim2.new(
 					startPos.X.Scale,
 					startPos.X.Offset + delta.X,
@@ -87,9 +92,9 @@ function Library.CreateWindow(titleText, configFileName)
 	local CustomCrosshair = Instance.new("ImageLabel", ScreenGui)
 	CustomCrosshair.Name = "CustomCrosshair"
 	CustomCrosshair.BackgroundTransparency = 1
-	CustomCrosshair.Size = UDim2.new(0, 32, 0, 32)
+	CustomCrosshair.Size = UDim2.new(0, 24, 0, 24)
 	CustomCrosshair.Image = "rbxassetid://10639770199"
-	CustomCrosshair.ZIndex = 999
+	CustomCrosshair.ZIndex = 9999
 	CustomCrosshair.Visible = false
 	CustomCrosshair.AnchorPoint = Vector2.new(0.5, 0.5)
 
@@ -99,23 +104,32 @@ function Library.CreateWindow(titleText, configFileName)
 	MainFrame.BackgroundColor3 = COLOR_PRIMARY
 	MainFrame.BorderSizePixel = 0
 	MainFrame.ClipsDescendants = false
-	MainFrame.Size = UDim2.new(0, 520, 0, 305)
-	MainFrame.Position = UDim2.new(0.5, -260, 0.5, -152)
+	MainFrame.Size = UDim2.new(0, 520, 0, 320)
+	MainFrame.Position = UDim2.new(0.5, -260, 0.5, -160)
 
-	-- Hover Detection for Custom Crosshair
+	local MainCorner = Instance.new("UICorner", MainFrame)
+	MainCorner.CornerRadius = UDim.new(0, 8)
+
+	local MainStroke = Instance.new("UIStroke", MainFrame)
+	MainStroke.Color = COLOR_BORDER
+	MainStroke.Thickness = 1
+
+	-- Hover Crosshair Smooth Tracking
+	local crosshairConnection
 	MainFrame.MouseEnter:Connect(function()
 		CustomCrosshair.Visible = true
 		UserInputService.MouseIconEnabled = false
+		crosshairConnection = RunService.RenderStepped:Connect(function()
+			local mousePos = UserInputService:GetMouseLocation()
+			CustomCrosshair.Position = UDim2.new(0, mousePos.X, 0, mousePos.Y - 36) -- Offset for GuiInset
+		end)
 	end)
 
 	MainFrame.MouseLeave:Connect(function()
 		CustomCrosshair.Visible = false
 		UserInputService.MouseIconEnabled = true
-	end)
-
-	UserInputService.InputChanged:Connect(function(input)
-		if CustomCrosshair.Visible and input.UserInputType == Enum.UserInputType.MouseMovement then
-			CustomCrosshair.Position = UDim2.new(0, input.Position.X, 0, input.Position.Y)
+		if crosshairConnection then
+			crosshairConnection:Disconnect()
 		end
 	end)
 
@@ -124,11 +138,11 @@ function Library.CreateWindow(titleText, configFileName)
 	TopBar.Name = "TopBar"
 	TopBar.BackgroundTransparency = 1
 	TopBar.BorderSizePixel = 0
-	TopBar.Size = UDim2.new(1, 0, 0, 28)
+	TopBar.Size = UDim2.new(1, 0, 0, 32)
 
 	local TopBarPadding = Instance.new("UIPadding", TopBar)
-	TopBarPadding.PaddingLeft = UDim.new(0, 10)
-	TopBarPadding.PaddingRight = UDim.new(0, 10)
+	TopBarPadding.PaddingLeft = UDim.new(0, 14)
+	TopBarPadding.PaddingRight = UDim.new(0, 14)
 
 	local Title = Instance.new("TextLabel", TopBar)
 	Title.Name = "Title"
@@ -137,12 +151,12 @@ function Library.CreateWindow(titleText, configFileName)
 	Title.Size = UDim2.new(0.35, 0, 1, 0)
 	Title.FontFace = FONT_BOLD
 	Title.RichText = true
-	Title.Text = titleText or [[Phantom <font color="rgb(77, 87, 122)">Hook</font>]]
+	Title.Text = titleText or [[Phantom <font color="rgb(120, 130, 230)">Hook</font>]]
 	Title.TextColor3 = COLOR_TEXT_ACTIVE
 	Title.TextSize = 14
 	Title.TextXAlignment = Enum.TextXAlignment.Left
 
-	-- Window Controls (Minimize Button)
+	-- Window Controls
 	local WindowControls = Instance.new("Frame", TopBar)
 	WindowControls.Name = "WindowControls"
 	WindowControls.BackgroundTransparency = 1
@@ -153,20 +167,26 @@ function Library.CreateWindow(titleText, configFileName)
 	ControlsLayout.FillDirection = Enum.FillDirection.Horizontal
 	ControlsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
 	ControlsLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	ControlsLayout.Padding = UDim.new(0, 6)
 
 	local MinBtn = Instance.new("TextButton", WindowControls)
 	MinBtn.BackgroundTransparency = 1
-	MinBtn.Size = UDim2.new(0, 12, 0, 12)
+	MinBtn.Size = UDim2.new(0, 20, 0, 20)
 	MinBtn.FontFace = FONT_BOLD
 	MinBtn.Text = "-"
 	MinBtn.TextColor3 = COLOR_TEXT_INACTIVE
-	MinBtn.TextSize = 14
+	MinBtn.TextSize = 16
+
+	MinBtn.MouseEnter:Connect(function()
+		TweenService:Create(MinBtn, TWEEN_FAST, { TextColor3 = COLOR_TEXT_ACTIVE }):Play()
+	end)
+	MinBtn.MouseLeave:Connect(function()
+		TweenService:Create(MinBtn, TWEEN_FAST, { TextColor3 = COLOR_TEXT_INACTIVE }):Play()
+	end)
 
 	MinBtn.MouseButton1Click:Connect(function()
 		Window.Minimized = not Window.Minimized
-		TweenService:Create(MainFrame, TWEEN_INFO, {
-			Size = Window.Minimized and UDim2.new(0, 520, 0, 28) or UDim2.new(0, 520, 0, 305)
+		TweenService:Create(MainFrame, TWEEN_SMOOTH, {
+			Size = Window.Minimized and UDim2.new(0, 520, 0, 32) or UDim2.new(0, 520, 0, 320)
 		}):Play()
 	end)
 
@@ -190,8 +210,10 @@ function Library.CreateWindow(titleText, configFileName)
 	-- =========================================================================
 	function Window:SaveConfig()
 		if not writefile then return end
-		local encodedData = HttpService:JSONEncode(Window.ConfigData)
-		writefile(configFileName, encodedData)
+		pcall(function()
+			local encodedData = HttpService:JSONEncode(Window.ConfigData)
+			writefile(configFileName, encodedData)
+		end)
 	end
 
 	function Window:LoadConfig()
@@ -211,6 +233,7 @@ function Library.CreateWindow(titleText, configFileName)
 	end
 
 	function Window:Destroy()
+		if crosshairConnection then crosshairConnection:Disconnect() end
 		UserInputService.MouseIconEnabled = true
 		ScreenGui:Destroy()
 	end
@@ -222,21 +245,21 @@ function Library.CreateWindow(titleText, configFileName)
 		local TabFrame = Instance.new("Frame", MainFrame)
 		TabFrame.Name = name .. "_Tab"
 		TabFrame.BackgroundTransparency = 1
-		TabFrame.Position = UDim2.new(0, 0, 0, 28)
-		TabFrame.Size = UDim2.new(1, 0, 1, -28)
+		TabFrame.Position = UDim2.new(0, 0, 0, 32)
+		TabFrame.Size = UDim2.new(1, 0, 1, -32)
 		TabFrame.Visible = false
 
 		local TabPadding = Instance.new("UIPadding", TabFrame)
-		TabPadding.PaddingTop = UDim.new(0, 4)
-		TabPadding.PaddingBottom = UDim.new(0, 10)
-		TabPadding.PaddingLeft = UDim.new(0, 10)
-		TabPadding.PaddingRight = UDim.new(0, 10)
+		TabPadding.PaddingTop = UDim.new(0, 6)
+		TabPadding.PaddingBottom = UDim.new(0, 12)
+		TabPadding.PaddingLeft = UDim.new(0, 12)
+		TabPadding.PaddingRight = UDim.new(0, 12)
 
 		local TabContentLayout = Instance.new("UIListLayout", TabFrame)
 		TabContentLayout.FillDirection = Enum.FillDirection.Horizontal
 		TabContentLayout.HorizontalFlex = Enum.UIFlexAlignment.Fill
 		TabContentLayout.VerticalFlex = Enum.UIFlexAlignment.Fill
-		TabContentLayout.Padding = UDim.new(0, 8)
+		TabContentLayout.Padding = UDim.new(0, 10)
 		TabContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
 		local TabBtn = Instance.new("TextButton", TabButtonsContainer)
@@ -252,10 +275,10 @@ function Library.CreateWindow(titleText, configFileName)
 		local function activateTab()
 			for _, t in pairs(Window.Tabs) do
 				t.Frame.Visible = false
-				TweenService:Create(t.Button, TWEEN_INFO, { TextColor3 = COLOR_TEXT_INACTIVE }):Play()
+				TweenService:Create(t.Button, TWEEN_FAST, { TextColor3 = COLOR_TEXT_INACTIVE }):Play()
 			end
 			TabFrame.Visible = true
-			TweenService:Create(TabBtn, TWEEN_INFO, { TextColor3 = COLOR_TEXT_ACTIVE }):Play()
+			TweenService:Create(TabBtn, TWEEN_FAST, { TextColor3 = COLOR_TEXT_ACTIVE }):Play()
 			Window.CurrentTab = Tab
 		end
 
@@ -280,15 +303,18 @@ function Library.CreateWindow(titleText, configFileName)
 			SectionFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 			SectionFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
+			local SectionCorner = Instance.new("UICorner", SectionFrame)
+			SectionCorner.CornerRadius = UDim.new(0, 6)
+
 			local Stroke = Instance.new("UIStroke", SectionFrame)
-			Stroke.Color = COLOR_SURFACE
-			Stroke.LineJoinMode = Enum.LineJoinMode.Miter
+			Stroke.Color = COLOR_BORDER
+			Stroke.Thickness = 1
 
 			local SectionPadding = Instance.new("UIPadding", SectionFrame)
-			SectionPadding.PaddingTop = UDim.new(0, 8)
-			SectionPadding.PaddingBottom = UDim.new(0, 8)
-			SectionPadding.PaddingLeft = UDim.new(0, 8)
-			SectionPadding.PaddingRight = UDim.new(0, 8)
+			SectionPadding.PaddingTop = UDim.new(0, 10)
+			SectionPadding.PaddingBottom = UDim.new(0, 10)
+			SectionPadding.PaddingLeft = UDim.new(0, 10)
+			SectionPadding.PaddingRight = UDim.new(0, 10)
 
 			local SectionLayout = Instance.new("UIListLayout", SectionFrame)
 			SectionLayout.HorizontalFlex = Enum.UIFlexAlignment.Fill
@@ -308,12 +334,7 @@ function Library.CreateWindow(titleText, configFileName)
 			function Section:AddButton(text, callback)
 				callback = callback or function() end
 
-				local BtnFrame = Instance.new("Frame", SectionFrame)
-				BtnFrame.Name = "ButtonFrame"
-				BtnFrame.BackgroundTransparency = 1
-				BtnFrame.Size = UDim2.new(1, 0, 0, 22)
-
-				local Button = Instance.new("TextButton", BtnFrame)
+				local Button = Instance.new("TextButton", SectionFrame)
 				Button.Name = "Button"
 				Button.BackgroundColor3 = COLOR_SURFACE
 				Button.BorderSizePixel = 0
@@ -321,9 +342,25 @@ function Library.CreateWindow(titleText, configFileName)
 				Button.Text = text
 				Button.TextColor3 = COLOR_TEXT_ACTIVE
 				Button.TextSize = 12
-				Button.Size = UDim2.new(1, 0, 1, 0)
+				Button.Size = UDim2.new(1, 0, 0, 24)
+
+				local BtnCorner = Instance.new("UICorner", Button)
+				BtnCorner.CornerRadius = UDim.new(0, 4)
+
+				local BtnStroke = Instance.new("UIStroke", Button)
+				BtnStroke.Color = COLOR_BORDER
+
+				Button.MouseEnter:Connect(function()
+					TweenService:Create(Button, TWEEN_FAST, { BackgroundColor3 = COLOR_SURFACE_HOVER }):Play()
+				end)
+				Button.MouseLeave:Connect(function()
+					TweenService:Create(Button, TWEEN_FAST, { BackgroundColor3 = COLOR_SURFACE }):Play()
+				end)
 
 				Button.MouseButton1Click:Connect(function()
+					TweenService:Create(Button, TWEEN_FAST, { Size = UDim2.new(1, -2, 0, 22) }):Play()
+					task.wait(0.05)
+					TweenService:Create(Button, TWEEN_FAST, { Size = UDim2.new(1, 0, 0, 24) }):Play()
 					task.spawn(pcall, callback)
 				end)
 			end
@@ -347,9 +384,15 @@ function Library.CreateWindow(titleText, configFileName)
 				local ToggleBtn = Instance.new("TextButton", ToggleFrame)
 				ToggleBtn.Name = "ToggleButton"
 				ToggleBtn.BorderSizePixel = 0
-				ToggleBtn.Size = UDim2.new(0, 12, 0, 12)
+				ToggleBtn.Size = UDim2.new(0, 14, 0, 14)
 				ToggleBtn.Text = ""
 				ToggleBtn.BackgroundColor3 = state and COLOR_ACCENT or COLOR_SURFACE
+
+				local ToggleCorner = Instance.new("UICorner", ToggleBtn)
+				ToggleCorner.CornerRadius = UDim.new(0, 3)
+
+				local ToggleStroke = Instance.new("UIStroke", ToggleBtn)
+				ToggleStroke.Color = COLOR_BORDER
 
 				local Label = Instance.new("TextLabel", ToggleFrame)
 				Label.BackgroundTransparency = 1
@@ -358,14 +401,14 @@ function Library.CreateWindow(titleText, configFileName)
 				Label.TextColor3 = COLOR_TEXT_ACTIVE
 				Label.TextSize = 13
 				Label.TextXAlignment = Enum.TextXAlignment.Left
-				Label.Size = UDim2.new(1, -22, 1, 0)
+				Label.Size = UDim2.new(1, -24, 1, 0)
 
 				local function setToggle(val)
 					state = val
 					Window.ConfigData[configId] = state
 					Window:SaveConfig()
 
-					TweenService:Create(ToggleBtn, TWEEN_INFO, {
+					TweenService:Create(ToggleBtn, TWEEN_BOUNCE, {
 						BackgroundColor3 = state and COLOR_ACCENT or COLOR_SURFACE
 					}):Play()
 					task.spawn(pcall, callback, state)
@@ -390,7 +433,7 @@ function Library.CreateWindow(titleText, configFileName)
 				local KeyFrame = Instance.new("Frame", SectionFrame)
 				KeyFrame.Name = "Keybind"
 				KeyFrame.BackgroundTransparency = 1
-				KeyFrame.Size = UDim2.new(1, 0, 0, 20)
+				KeyFrame.Size = UDim2.new(1, 0, 0, 22)
 
 				local Layout = Instance.new("UIListLayout", KeyFrame)
 				Layout.FillDirection = Enum.FillDirection.Horizontal
@@ -411,8 +454,14 @@ function Library.CreateWindow(titleText, configFileName)
 				KeyBtn.FontFace = FONT_BOLD
 				KeyBtn.Text = currentKey.Name
 				KeyBtn.TextColor3 = COLOR_TEXT_ACTIVE
-				KeyBtn.TextSize = 12
+				KeyBtn.TextSize = 11
 				KeyBtn.Size = UDim2.new(0.4, 0, 1, 0)
+
+				local KeyCorner = Instance.new("UICorner", KeyBtn)
+				KeyCorner.CornerRadius = UDim.new(0, 4)
+
+				local KeyStroke = Instance.new("UIStroke", KeyBtn)
+				KeyStroke.Color = COLOR_BORDER
 
 				local function setKey(key)
 					currentKey = key
@@ -455,13 +504,14 @@ function Library.CreateWindow(titleText, configFileName)
 
 				local Layout = Instance.new("UIListLayout", SliderFrame)
 				Layout.SortOrder = Enum.SortOrder.LayoutOrder
+				Layout.Padding = UDim.new(0, 4)
 
 				local Label = Instance.new("TextLabel", SliderFrame)
 				Label.BackgroundTransparency = 1
 				Label.FontFace = FONT_BOLD
 				Label.Text = text
 				Label.TextColor3 = COLOR_TEXT_ACTIVE
-				Label.TextSize = 13
+				Label.TextSize = 12
 				Label.TextXAlignment = Enum.TextXAlignment.Left
 				Label.Size = UDim2.new(1, 0, 0, 14)
 
@@ -471,16 +521,25 @@ function Library.CreateWindow(titleText, configFileName)
 				BarBg.BorderSizePixel = 0
 				BarBg.Size = UDim2.new(1, 0, 0, 10)
 
+				local BarCorner = Instance.new("UICorner", BarBg)
+				BarCorner.CornerRadius = UDim.new(0, 3)
+
+				local BarStroke = Instance.new("UIStroke", BarBg)
+				BarStroke.Color = COLOR_BORDER
+
 				local Indicator = Instance.new("Frame", BarBg)
 				Indicator.Name = "Indicator"
 				Indicator.BackgroundColor3 = COLOR_ACCENT
 				Indicator.BorderSizePixel = 0
 
+				local IndicatorCorner = Instance.new("UICorner", Indicator)
+				IndicatorCorner.CornerRadius = UDim.new(0, 3)
+
 				local ValueLabel = Instance.new("TextLabel", BarBg)
 				ValueLabel.BackgroundTransparency = 1
 				ValueLabel.FontFace = FONT_BOLD
 				ValueLabel.TextColor3 = COLOR_TEXT_ACTIVE
-				ValueLabel.TextSize = 11
+				ValueLabel.TextSize = 10
 				ValueLabel.Size = UDim2.new(1, 0, 1, 0)
 
 				local function setSlider(val)
@@ -489,7 +548,7 @@ function Library.CreateWindow(titleText, configFileName)
 					Window:SaveConfig()
 
 					local percent = (value - min) / (max - min)
-					TweenService:Create(Indicator, TWEEN_INFO, { Size = UDim2.new(percent, 0, 1, 0) }):Play()
+					TweenService:Create(Indicator, TWEEN_FAST, { Size = UDim2.new(percent, 0, 1, 0) }):Play()
 					ValueLabel.Text = tostring(value)
 					task.spawn(pcall, callback, value)
 				end
@@ -535,19 +594,25 @@ function Library.CreateWindow(titleText, configFileName)
 				local DropFrame = Instance.new("Frame", SectionFrame)
 				DropFrame.Name = "Dropdown"
 				DropFrame.BackgroundTransparency = 1
-				DropFrame.Size = UDim2.new(1, 0, 0, 20)
+				DropFrame.Size = UDim2.new(1, 0, 0, 22)
 
 				local Header = Instance.new("Frame", DropFrame)
 				Header.BackgroundColor3 = COLOR_SURFACE
 				Header.BorderSizePixel = 0
 				Header.Size = UDim2.new(1, 0, 1, 0)
 
+				local HeaderCorner = Instance.new("UICorner", Header)
+				HeaderCorner.CornerRadius = UDim.new(0, 4)
+
+				local HeaderStroke = Instance.new("UIStroke", Header)
+				HeaderStroke.Color = COLOR_BORDER
+
 				local DropBtn = Instance.new("TextButton", Header)
 				DropBtn.BackgroundTransparency = 1
 				DropBtn.FontFace = FONT_BOLD
 				DropBtn.Text = selected
 				DropBtn.TextColor3 = COLOR_TEXT_ACTIVE
-				DropBtn.TextSize = 13
+				DropBtn.TextSize = 12
 				DropBtn.Size = UDim2.new(1, -20, 1, 0)
 
 				local Icon = Instance.new("ImageLabel", Header)
@@ -564,6 +629,12 @@ function Library.CreateWindow(titleText, configFileName)
 				DropMenu.Size = UDim2.new(0, 0, 0, 0)
 				DropMenu.Visible = false
 				DropMenu.ZIndex = 30
+
+				local MenuCorner = Instance.new("UICorner", DropMenu)
+				MenuCorner.CornerRadius = UDim.new(0, 4)
+
+				local MenuStroke = Instance.new("UIStroke", DropMenu)
+				MenuStroke.Color = COLOR_BORDER
 
 				local MenuPadding = Instance.new("UIPadding", DropMenu)
 				MenuPadding.PaddingTop = UDim.new(0, 4)
@@ -591,10 +662,17 @@ function Library.CreateWindow(titleText, configFileName)
 						OptBtn.BackgroundColor3 = COLOR_SURFACE
 						OptBtn.BorderSizePixel = 0
 						OptBtn.FontFace = FONT_BOLD
-						OptBtn.Size = UDim2.new(1, 0, 0, 18)
+						OptBtn.Size = UDim2.new(1, 0, 0, 20)
 						OptBtn.Text = opt
-						OptBtn.TextSize = 12
-						OptBtn.TextColor3 = (opt == selected) Featured and COLOR_TEXT_ACTIVE or COLOR_TEXT_INACTIVE
+						OptBtn.TextSize = 11
+						OptBtn.TextColor3 = (opt == selected) and COLOR_TEXT_ACTIVE or COLOR_TEXT_INACTIVE
+
+						OptBtn.MouseEnter:Connect(function()
+							TweenService:Create(OptBtn, TWEEN_FAST, { BackgroundColor3 = COLOR_SURFACE_HOVER }):Play()
+						end)
+						OptBtn.MouseLeave:Connect(function()
+							TweenService:Create(OptBtn, TWEEN_FAST, { BackgroundColor3 = COLOR_SURFACE }):Play()
+						end)
 
 						OptBtn.MouseButton1Click:Connect(function()
 							setOption(opt)
@@ -609,10 +687,10 @@ function Library.CreateWindow(titleText, configFileName)
 				DropBtn.MouseButton1Click:Connect(function()
 					DropMenu.Visible = not DropMenu.Visible
 					if DropMenu.Visible then
-						local targetHeight = (#options * 20) + 8
-						DropMenu.Position = UDim2.new(0, Header.AbsolutePosition.X, 0, Header.AbsolutePosition.Y + Header.AbsoluteSize.Y + 2)
+						local targetHeight = (#options * 22) + 8
+						DropMenu.Position = UDim2.new(0, Header.AbsolutePosition.X, 0, Header.AbsolutePosition.Y + Header.AbsoluteSize.Y + 4)
 						DropMenu.Size = UDim2.new(0, Header.AbsoluteSize.X, 0, 0)
-						TweenService:Create(DropMenu, TWEEN_INFO, { Size = UDim2.new(0, Header.AbsoluteSize.X, 0, targetHeight) }):Play()
+						TweenService:Create(DropMenu, TWEEN_SMOOTH, { Size = UDim2.new(0, Header.AbsoluteSize.X, 0, targetHeight) }):Play()
 					end
 				end)
 
