@@ -1,437 +1,666 @@
-local Library = {}
-Library.__index = Library
+-- UI Library
+-- A clean, reusable UI library for Roblox
 
--- Helper function to make frames draggable
-local function makeDraggable(topbar, frame)
-	local UserInputService = game:GetService("UserInputService")
-	local dragging, dragInput, dragStart, startPos
+local UILibrary = {}
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
-	topbar.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			dragStart = input.Position
-			startPos = frame.Position
+-- Configuration
+local Config = {
+    Colors = {
+        Primary = Color3.fromRGB(174, 189, 245),
+        PrimaryDark = Color3.fromRGB(155, 173, 227),
+        Background = Color3.fromRGB(24, 24, 24),
+        BackgroundDark = Color3.fromRGB(17, 16, 17),
+        Text = Color3.fromRGB(255, 255, 255),
+        TextDim = Color3.fromRGB(121, 121, 120),
+        TextMuted = Color3.fromRGB(91, 91, 91),
+        Border = Color3.fromRGB(41, 41, 41),
+        BorderLight = Color3.fromRGB(71, 71, 71),
+        BorderDim = Color3.fromRGB(66, 66, 66),
+    },
+    Font = "rbxasset://fonts/families/PressStart2P.json",
+    FontBold = Enum.FontWeight.Bold,
+    FontRegular = Enum.FontWeight.Regular,
+}
 
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-			end)
-		end
-	end)
-
-	topbar.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-			dragInput = input
-		end
-	end)
-
-	UserInputService.InputChanged:Connect(function(input)
-		if input == dragInput and dragging then
-			local delta = input.Position - dragStart
-			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-		end
-	end)
+-- Utility Functions
+local function createFont(family, weight, style)
+    return Font.new(family, weight or Enum.FontWeight.Regular, style or Enum.FontStyle.Normal)
 end
 
-function Library.CreateWindow(titleText)
-	local windowData = {
-		Tabs = {},
-		CurrentTab = nil
-	}
-
-	-- ScreenGui
-	local ScreenGui = Instance.new("ScreenGui")
-	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	ScreenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-
-	-- Main Window Frame
-	local Window = Instance.new("Frame", ScreenGui)
-	Window.Name = "window"
-	Window.BorderSizePixel = 0
-	Window.BackgroundColor3 = Color3.fromRGB(17, 16, 17)
-	Window.AnchorPoint = Vector2.new(0.5, 0.5)
-	Window.Size = UDim2.new(0, 498, 0, 598)
-	Window.Position = UDim2.new(0.5, 0, 0.5, 0)
-
-	local Stroke1 = Instance.new("UIStroke", Window)
-	Stroke1.Color = Color3.fromRGB(174, 189, 245)
-	Stroke1.LineJoinMode = Enum.LineJoinMode.Miter
-
-	local Stroke2 = Instance.new("UIStroke", Window)
-	Stroke2.BorderOffset = UDim.new(0, 1)
-	Stroke2.LineJoinMode = Enum.LineJoinMode.Miter
-
-	local Padding = Instance.new("UIPadding", Window)
-	Padding.PaddingBottom = UDim.new(0, 10)
-
-	-- Title Bar
-	local Title = Instance.new("Frame", Window)
-	Title.Name = "title"
-	Title.BorderSizePixel = 0
-	Title.BackgroundTransparency = 1
-	Title.Size = UDim2.new(1, 0, 0, 29)
-
-	local TitleText = Instance.new("TextLabel", Title)
-	TitleText.BorderSizePixel = 0
-	TitleText.TextSize = 14
-	TitleText.TextXAlignment = Enum.TextXAlignment.Left
-	TitleText.BackgroundTransparency = 1
-	TitleText.FontFace = Font.new("rbxasset://fonts/families/PressStart2P.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-	TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-	TitleText.RichText = true
-	TitleText.Size = UDim2.new(1, 0, 1, 0)
-	TitleText.Text = titleText or ' <font color="rgb(169, 189, 249)">akari</font>.private'
-
-	local TitleStroke = Instance.new("UIStroke", TitleText)
-	TitleStroke.BorderOffset = UDim.new(0, 1)
-	TitleStroke.LineJoinMode = Enum.LineJoinMode.Miter
-
-	local TitlePadding = Instance.new("UIPadding", Title)
-	TitlePadding.PaddingLeft = UDim.new(0, 9)
-
-	makeDraggable(Title, Window)
-
-	-- Tab Buttons Container
-	local TabButtons = Instance.new("Frame", Window)
-	TabButtons.Name = "tab_buttons"
-	TabButtons.ZIndex = 2
-	TabButtons.BorderSizePixel = 0
-	TabButtons.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
-	TabButtons.Size = UDim2.new(1, -18, 0, 25)
-	TabButtons.Position = UDim2.new(0, 9, 0, 29)
-
-	local TabListLayout = Instance.new("UIListLayout", TabButtons)
-	TabListLayout.HorizontalFlex = Enum.UIFlexAlignment.Fill
-	TabListLayout.Padding = UDim.new(0, 1)
-	TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	TabListLayout.FillDirection = Enum.FillDirection.Horizontal
-
-	local TabButtonsPadding = Instance.new("UIPadding", TabButtons)
-	TabButtonsPadding.PaddingRight = UDim.new(0, 1)
-	TabButtonsPadding.PaddingLeft = UDim.new(0, 1)
-
-	-- Tabs Content Frame
-	local TabContainer = Instance.new("Frame", Window)
-	TabContainer.Name = "tab_container"
-	TabContainer.BorderSizePixel = 0
-	TabContainer.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
-	TabContainer.Size = UDim2.new(1, -20, 1, -54)
-	TabContainer.Position = UDim2.new(0, 10, 0, 54)
-
-	local TabContainerStroke = Instance.new("UIStroke", TabContainer)
-	TabContainerStroke.Color = Color3.fromRGB(41, 41, 41)
-	TabContainerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	TabContainerStroke.LineJoinMode = Enum.LineJoinMode.Miter
-
-	-- Window Library API
-	function windowData:CreateTab(tabName)
-		local tabData = {}
-
-		-- Create Tab Button
-		local TabButton = Instance.new("TextButton", TabButtons)
-		TabButton.Name = "tab_btn_" .. tabName
-		TabButton.BorderSizePixel = 0
-		TabButton.TextSize = 14
-		TabButton.Text = tabName
-		TabButton.TextColor3 = Color3.fromRGB(121, 121, 120)
-		TabButton.FontFace = Font.new("rbxasset://fonts/families/PressStart2P.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-		TabButton.BackgroundTransparency = 1
-		TabButton.Size = UDim2.new(1, 0, 1, 0)
-
-		local TabStroke1 = Instance.new("UIStroke", TabButton)
-		TabStroke1.Color = Color3.fromRGB(41, 41, 41)
-		TabStroke1.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-		TabStroke1.LineJoinMode = Enum.LineJoinMode.Miter
-
-		local TabStroke2 = Instance.new("UIStroke", TabButton)
-		TabStroke2.LineJoinMode = Enum.LineJoinMode.Miter
-
-		-- Highlight Line for active tab
-		local Highlight = Instance.new("Frame", TabButton)
-		Highlight.Name = "selected_tab_highlight"
-		Highlight.BorderSizePixel = 0
-		Highlight.BackgroundColor3 = Color3.fromRGB(155, 173, 227)
-		Highlight.Size = UDim2.new(1, 0, 0, 2)
-		Highlight.Visible = false
-
-		local BottomCover = Instance.new("Frame", TabButton)
-		BottomCover.BorderSizePixel = 0
-		BottomCover.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
-		BottomCover.Size = UDim2.new(1, 0, 0, 1)
-		BottomCover.Position = UDim2.new(0, 0, 1, 0)
-		BottomCover.Visible = false
-
-		-- Tab Page View
-		local Page = Instance.new("Frame", TabContainer)
-		Page.Name = "page_" .. tabName
-		Page.BorderSizePixel = 0
-		Page.BackgroundTransparency = 1
-		Page.Size = UDim2.new(1, 0, 1, 0)
-		Page.Visible = false
-
-		local PagePadding = Instance.new("UIPadding", Page)
-		PagePadding.PaddingTop = UDim.new(0, 12)
-		PagePadding.PaddingRight = UDim.new(0, 11)
-		PagePadding.PaddingLeft = UDim.new(0, 11)
-
-		local PageLayout = Instance.new("UIListLayout", Page)
-		PageLayout.HorizontalFlex = Enum.UIFlexAlignment.Fill
-		PageLayout.Padding = UDim.new(0, 12)
-		PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-		PageLayout.FillDirection = Enum.FillDirection.Horizontal
-
-		local function Select()
-			for _, tab in pairs(windowData.Tabs) do
-				tab.Page.Visible = false
-				tab.Button.TextColor3 = Color3.fromRGB(121, 121, 120)
-				tab.Highlight.Visible = false
-				tab.BottomCover.Visible = false
-			end
-			Page.Visible = true
-			TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-			Highlight.Visible = true
-			BottomCover.Visible = true
-			windowData.CurrentTab = tabData
-		end
-
-		TabButton.MouseButton1Click:Connect(Select)
-
-		tabData.Button = TabButton
-		tabData.Highlight = Highlight
-		tabData.BottomCover = BottomCover
-		tabData.Page = Page
-		table.insert(windowData.Tabs, tabData)
-
-		if #windowData.Tabs == 1 then
-			Select()
-		end
-
-		-- Section Builder
-		function tabData:CreateSection()
-			local sectionData = {}
-
-			local Section = Instance.new("Frame", Page)
-			Section.Name = "section"
-			Section.BorderSizePixel = 0
-			Section.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
-			Section.AutomaticSize = Enum.AutomaticSize.Y
-			Section.Size = UDim2.new(0, 223, 0, 0)
-
-			local SecStroke1 = Instance.new("UIStroke", Section)
-			SecStroke1.BorderOffset = UDim.new(0, 1)
-			SecStroke1.LineJoinMode = Enum.LineJoinMode.Miter
-
-			local SecStroke2 = Instance.new("UIStroke", Section)
-			SecStroke2.Color = Color3.fromRGB(71, 71, 71)
-			SecStroke2.LineJoinMode = Enum.LineJoinMode.Miter
-
-			local SecLayout = Instance.new("UIListLayout", Section)
-			SecLayout.Padding = UDim.new(0, 12)
-			SecLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-			local SecPadding = Instance.new("UIPadding", Section)
-			SecPadding.PaddingTop = UDim.new(0, 10)
-			SecPadding.PaddingLeft = UDim.new(0.0225, 0)
-			SecPadding.PaddingBottom = UDim.new(0, 10)
-
-			-- Toggle Element
-			function sectionData:AddToggle(text, default, callback)
-				local state = default or false
-				callback = callback or function() end
-
-				local ToggleFrame = Instance.new("Frame", Section)
-				ToggleFrame.Name = "Toggle"
-				ToggleFrame.BorderSizePixel = 0
-				ToggleFrame.BackgroundTransparency = 1
-				ToggleFrame.Size = UDim2.new(0, 0, 0, 16)
-
-				local ToggleLayout = Instance.new("UIListLayout", ToggleFrame)
-				ToggleLayout.Padding = UDim.new(0, 7)
-				ToggleLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-				ToggleLayout.SortOrder = Enum.SortOrder.LayoutOrder
-				ToggleLayout.FillDirection = Enum.FillDirection.Horizontal
-
-				local ToggleButton = Instance.new("TextButton", ToggleFrame)
-				ToggleButton.Name = "togglebutton"
-				ToggleButton.BorderSizePixel = 0
-				ToggleButton.Text = ""
-				ToggleButton.Size = UDim2.new(0, 10, 0, 10)
-				ToggleButton.BackgroundColor3 = state and Color3.fromRGB(174, 189, 245) or Color3.fromRGB(24, 24, 24)
-
-				local TStroke1 = Instance.new("UIStroke", ToggleButton)
-				TStroke1.Color = Color3.fromRGB(71, 71, 71)
-				TStroke1.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-				local TStroke2 = Instance.new("UIStroke", ToggleButton)
-				TStroke2.BorderOffset = UDim.new(0, 1)
-				TStroke2.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-				local Text = Instance.new("TextLabel", ToggleFrame)
-				Text.BorderSizePixel = 0
-				Text.TextSize = 14
-				Text.TextXAlignment = Enum.TextXAlignment.Left
-				Text.TextYAlignment = Enum.TextYAlignment.Top
-				Text.FontFace = Font.new("rbxasset://fonts/families/PressStart2P.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-				Text.TextColor3 = Color3.fromRGB(255, 255, 255)
-				Text.BackgroundTransparency = 1
-				Text.Size = UDim2.new(1, 0, 1, 0)
-				Text.Text = text
-
-				local function UpdateToggle()
-					state = not state
-					ToggleButton.BackgroundColor3 = state and Color3.fromRGB(174, 189, 245) or Color3.fromRGB(24, 24, 24)
-					pcall(callback, state)
-				end
-
-				ToggleButton.MouseButton1Click:Connect(UpdateToggle)
-			end
-
-			-- Slider Element
-			function sectionData:AddSlider(text, min, max, default, callback)
-				min = min or 0
-				max = max or 100
-				default = math.clamp(default or min, min, max)
-				callback = callback or function() end
-
-				local SliderFrame = Instance.new("Frame", Section)
-				SliderFrame.Name = "slider"
-				SliderFrame.BorderSizePixel = 0
-				SliderFrame.BackgroundTransparency = 1
-				SliderFrame.Size = UDim2.new(0, 205, 0, 30)
-
-				local SliderPadding = Instance.new("UIPadding", SliderFrame)
-				SliderPadding.PaddingBottom = UDim.new(0, 4)
-
-				local Title = Instance.new("TextLabel", SliderFrame)
-				Title.Name = "Title"
-				Title.BorderSizePixel = 0
-				Title.TextSize = 14
-				Title.TextXAlignment = Enum.TextXAlignment.Left
-				Title.TextYAlignment = Enum.TextYAlignment.Top
-				Title.FontFace = Font.new("rbxasset://fonts/families/PressStart2P.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-				Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-				Title.BackgroundTransparency = 1
-				Title.Size = UDim2.new(0, 205, 0, 15)
-				Title.Text = text
-
-				local SliderBase = Instance.new("Frame", SliderFrame)
-				SliderBase.Name = "silder base"
-				SliderBase.BorderSizePixel = 0
-				SliderBase.BackgroundTransparency = 1
-				SliderBase.Size = UDim2.new(0, 205, 0, 15)
-				SliderBase.Position = UDim2.new(0, 0, 0.59524, 0)
-
-				local BaseStroke = Instance.new("UIStroke", SliderBase)
-				BaseStroke.Color = Color3.fromRGB(66, 66, 66)
-
-				local ValueLabel = Instance.new("TextLabel", SliderBase)
-				ValueLabel.ZIndex = 2
-				ValueLabel.BorderSizePixel = 0
-				ValueLabel.TextSize = 14
-				ValueLabel.FontFace = Font.new("rbxasset://fonts/families/PressStart2P.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-				ValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-				ValueLabel.BackgroundTransparency = 1
-				ValueLabel.Size = UDim2.new(0, 205, 0, 15)
-				ValueLabel.Text = tostring(default)
-
-				local Fill = Instance.new("Frame", SliderBase)
-				Fill.Name = "slider fill"
-				Fill.BorderSizePixel = 0
-				Fill.BackgroundColor3 = Color3.fromRGB(173, 188, 244)
-				Fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
-
-				local dragging = false
-				local function UpdateSlider(input)
-					local pos = math.clamp((input.Position.X - SliderBase.AbsolutePosition.X) / SliderBase.AbsoluteSize.X, 0, 1)
-					local val = math.floor(min + ((max - min) * pos))
-					Fill.Size = UDim2.new(pos, 0, 1, 0)
-					ValueLabel.Text = tostring(val)
-					pcall(callback, val)
-				end
-
-				SliderBase.InputBegan:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-						dragging = true
-						UpdateSlider(input)
-					end
-				end)
-
-				game:GetService("UserInputService").InputEnded:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-						dragging = false
-					end
-				end)
-
-				game:GetService("UserInputService").InputChanged:Connect(function(input)
-					if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-						UpdateSlider(input)
-					end
-				end)
-			end
-
-			-- Keybind Element
-			function sectionData:AddKeybind(text, defaultKey, callback)
-				local currentKey = defaultKey or Enum.KeyCode.E
-				callback = callback or function() end
-				local listening = false
-
-				local KeybindFrame = Instance.new("Frame", Section)
-				KeybindFrame.Name = "keybind"
-				KeybindFrame.BorderSizePixel = 0
-				KeybindFrame.BackgroundTransparency = 1
-				KeybindFrame.Size = UDim2.new(0, 205, 0, 16)
-
-				local Layout = Instance.new("UIListLayout", KeybindFrame)
-				Layout.Padding = UDim.new(0, 7)
-				Layout.VerticalAlignment = Enum.VerticalAlignment.Center
-				Layout.FillDirection = Enum.FillDirection.Horizontal
-
-				local Label = Instance.new("TextLabel", KeybindFrame)
-				Label.BorderSizePixel = 0
-				Label.TextSize = 14
-				Label.TextXAlignment = Enum.TextXAlignment.Left
-				Label.FontFace = Font.new("rbxasset://fonts/families/PressStart2P.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-				Label.TextColor3 = Color3.fromRGB(255, 255, 255)
-				Label.BackgroundTransparency = 1
-				Label.Size = UDim2.new(0.6, 0, 1, 0)
-				Label.Text = text
-
-				local KeyLabel = Instance.new("TextLabel", KeybindFrame)
-				KeyLabel.BorderSizePixel = 0
-				KeyLabel.TextSize = 12
-				KeyLabel.TextXAlignment = Enum.TextXAlignment.Right
-				KeyLabel.FontFace = Font.new("rbxasset://fonts/families/PressStart2P.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-				KeyLabel.TextColor3 = Color3.fromRGB(91, 91, 91)
-				KeyLabel.BackgroundTransparency = 1
-				KeyLabel.Size = UDim2.new(0.35, 0, 1, 0)
-				KeyLabel.Text = "[" .. currentKey.Name .. "]"
-
-				KeybindFrame.InputBegan:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 then
-						listening = true
-						KeyLabel.Text = "[...]"
-					end
-				end)
-
-				game:GetService("UserInputService").InputBegan:Connect(function(input, gpe)
-					if listening and input.UserInputType == Enum.UserInputType.Keyboard then
-						listening = false
-						currentKey = input.KeyCode
-						KeyLabel.Text = "[" .. currentKey.Name .. "]"
-					elseif not gpe and input.KeyCode == currentKey then
-						pcall(callback, currentKey)
-					end
-				end)
-			end
-
-			return sectionData
-		end
-
-		return tabData
-	end
-
-	return windowData
+local function createShadow(parent, color, transparency, blur, size)
+    local shadow = Instance.new("UIShadow", parent)
+    if color then shadow.Color = color end
+    if transparency then shadow.Transparency = transparency end
+    if blur then shadow.Blur = blur end
+    if size then shadow.Size = size end
+    return shadow
 end
 
-return Library
+local function createStroke(parent, color, thickness, applyMode, joinMode)
+    local stroke = Instance.new("UIStroke", parent)
+    if color then stroke.Color = color end
+    if thickness then stroke.Thickness = thickness end
+    if applyMode then stroke.ApplyStrokeMode = applyMode end
+    stroke.LineJoinMode = joinMode or Enum.LineJoinMode.Miter
+    return stroke
+end
+
+local function createPadding(parent, left, right, top, bottom)
+    local padding = Instance.new("UIPadding", parent)
+    if left then padding.PaddingLeft = UDim.new(0, left) end
+    if right then padding.PaddingRight = UDim.new(0, right) end
+    if top then padding.PaddingTop = UDim.new(0, top) end
+    if bottom then padding.PaddingBottom = UDim.new(0, bottom) end
+    return padding
+end
+
+local function createListLayout(parent, padding, direction, sortOrder, verticalAlignment, horizontalFlex)
+    local layout = Instance.new("UIListLayout", parent)
+    if padding then layout.Padding = UDim.new(0, padding) end
+    if direction then layout.FillDirection = direction end
+    if sortOrder then layout.SortOrder = sortOrder end
+    if verticalAlignment then layout.VerticalAlignment = verticalAlignment end
+    if horizontalFlex then layout.HorizontalFlex = horizontalFlex end
+    return layout
+end
+
+-- Main Window Class
+local Window = {}
+Window.__index = Window
+
+function Window.new(title, size)
+    local self = setmetatable({}, Window)
+    self.Tabs = {}
+    self.ActiveTab = nil
+    
+    -- Create ScreenGui
+    self.Gui = Instance.new("ScreenGui")
+    self.Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    self.Gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+    
+    -- Create Main Window
+    self.Frame = Instance.new("Frame", self.Gui)
+    self.Frame.Name = "window"
+    self.Frame.BackgroundColor3 = Config.Colors.BackgroundDark
+    self.Frame.BorderSizePixel = 0
+    self.Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    self.Frame.Size = size or UDim2.new(0, 498, 0, 598)
+    self.Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    
+    -- Window Stroke
+    createStroke(self.Frame, Config.Colors.Primary)
+    
+    -- Title Bar
+    self.TitleBar = Instance.new("Frame", self.Frame)
+    self.TitleBar.Name = "title"
+    self.TitleBar.BackgroundTransparency = 1
+    self.TitleBar.Size = UDim2.new(1, 0, 0, 29)
+    self.TitleBar.BorderSizePixel = 0
+    
+    createPadding(self.TitleBar, 9)
+    
+    self.TitleLabel = Instance.new("TextLabel", self.TitleBar)
+    self.TitleLabel.Text = string.format('<font color="rgb(%d, %d, %d)">akari</font>.private', 
+        Config.Colors.Primary.R * 255, Config.Colors.Primary.G * 255, Config.Colors.Primary.B * 255)
+    self.TitleLabel.TextColor3 = Config.Colors.Text
+    self.TitleLabel.TextSize = 14
+    self.TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    self.TitleLabel.FontFace = createFont(Config.Font, Config.FontRegular)
+    self.TitleLabel.RichText = true
+    self.TitleLabel.Size = UDim2.new(1, 0, 1, 0)
+    self.TitleLabel.BackgroundTransparency = 1
+    self.TitleLabel.BorderSizePixel = 0
+    
+    createStroke(self.TitleLabel, nil, nil, nil, nil, Enum.LineJoinMode.Miter)
+    
+    -- Tab Buttons Container
+    self.TabContainer = Instance.new("Frame", self.Frame)
+    self.TabContainer.Name = "tab_buttons"
+    self.TabContainer.ZIndex = 2
+    self.TabContainer.BackgroundColor3 = Config.Colors.Background
+    self.TabContainer.Size = UDim2.new(1, -18, 0, 25)
+    self.TabContainer.Position = UDim2.new(0, 9, 0, 29)
+    self.TabContainer.BorderSizePixel = 0
+    
+    createPadding(self.TabContainer, 1, 1)
+    createListLayout(self.TabContainer, 1, Enum.FillDirection.Horizontal, 
+        Enum.SortOrder.LayoutOrder, nil, Enum.UIFlexAlignment.Fill)
+    
+    -- Content Area
+    self.Content = Instance.new("Frame", self.Frame)
+    self.Content.Name = "tab"
+    self.Content.BackgroundColor3 = Config.Colors.Background
+    self.Content.Size = UDim2.new(1, -20, 1, -54)
+    self.Content.Position = UDim2.new(0, 10, 0, 54)
+    self.Content.BorderSizePixel = 0
+    
+    createStroke(self.Content, Config.Colors.Border, nil, Enum.ApplyStrokeMode.Border)
+    createPadding(self.Content, 11, 11, 12)
+    createListLayout(self.Content, 12, Enum.FillDirection.Horizontal, 
+        Enum.SortOrder.LayoutOrder, nil, Enum.UIFlexAlignment.Fill)
+    
+    createPadding(self.Frame, nil, nil, nil, 10)
+    
+    return self
+end
+
+-- Tab Class
+local Tab = {}
+Tab.__index = Tab
+
+function Window:AddTab(name)
+    local tab = setmetatable({}, Tab)
+    tab.Name = name
+    tab.Parent = self
+    tab.Sections = {}
+    tab.Elements = {}
+    
+    -- Create Tab Button
+    local button = Instance.new("TextButton", self.TabContainer)
+    button.Name = "unselected_tab"
+    button.Text = name
+    button.TextColor3 = Config.Colors.TextDim
+    button.TextSize = 14
+    button.FontFace = createFont(Config.Font, Config.FontRegular)
+    button.Size = UDim2.new(1, 0, 1, 0)
+    button.BackgroundTransparency = 1
+    button.BorderSizePixel = 0
+    tab.Button = button
+    
+    createStroke(button, Config.Colors.Border, nil, Enum.ApplyStrokeMode.Border)
+    createStroke(button)
+    
+    -- Tab Content Container
+    tab.Container = Instance.new("Frame", self.Content)
+    tab.Container.Name = "tab_content"
+    tab.Container.BackgroundTransparency = 1
+    tab.Container.Size = UDim2.new(1, 0, 1, 0)
+    tab.Container.Visible = false
+    
+    local sectionLayout = Instance.new("UIListLayout", tab.Container)
+    sectionLayout.Padding = UDim.new(0, 12)
+    sectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    sectionLayout.FillDirection = Enum.FillDirection.Horizontal
+    sectionLayout.HorizontalFlex = Enum.UIFlexAlignment.Fill
+    
+    tab.SectionLayout = sectionLayout
+    self.Tabs[#self.Tabs + 1] = tab
+    
+    -- Click handler
+    button.MouseButton1Click:Connect(function()
+        self:SelectTab(tab)
+    end)
+    
+    -- Select first tab
+    if not self.ActiveTab then
+        self:SelectTab(tab)
+    end
+    
+    return tab
+end
+
+function Window:SelectTab(tab)
+    if self.ActiveTab then
+        -- Deselect previous
+        self.ActiveTab.Button.Name = "unselected_tab"
+        self.ActiveTab.Button.TextColor3 = Config.Colors.TextDim
+        self.ActiveTab.Container.Visible = false
+        local oldHighlight = self.ActiveTab.Button:FindFirstChild("selected tab higlight ")
+        if oldHighlight then oldHighlight:Destroy() end
+    end
+    
+    self.ActiveTab = tab
+    tab.Button.Name = "selected_tab"
+    tab.Button.TextColor3 = Config.Colors.Text
+    
+    -- Highlight
+    local highlight = Instance.new("Frame", tab.Button)
+    highlight.Name = "selected tab higlight "
+    highlight.BackgroundColor3 = Config.Colors.PrimaryDark
+    highlight.Size = UDim2.new(1, 0, 0, 2)
+    highlight.BorderSizePixel = 0
+    
+    createShadow(highlight, Config.Colors.PrimaryDark, 0.5, 0, 8)
+    
+    -- Bottom border
+    local border = Instance.new("Frame", tab.Button)
+    border.BackgroundColor3 = Config.Colors.Background
+    border.Size = UDim2.new(1, 0, 0, 1)
+    border.Position = UDim2.new(0, 0, 1, 0)
+    border.BorderSizePixel = 0
+    
+    tab.Container.Visible = true
+end
+
+-- Section Class
+local Section = {}
+Section.__index = Section
+
+function Tab:AddSection(name)
+    local section = setmetatable({}, Section)
+    section.Name = name
+    section.Parent = self
+    section.Elements = {}
+    section.Frame = nil
+    
+    -- Create section frame
+    local frame = Instance.new("Frame", self.Container)
+    frame.Name = "section"
+    frame.BackgroundColor3 = Config.Colors.Background
+    frame.Size = UDim2.new(0, 223, 0, 0)
+    frame.AutomaticSize = Enum.AutomaticSize.Y
+    frame.BorderSizePixel = 0
+    
+    createStroke(frame, nil, nil, nil, Enum.LineJoinMode.Miter)
+    createStroke(frame, Config.Colors.BorderLight, nil, nil, Enum.LineJoinMode.Miter)
+    
+    local layout = Instance.new("UIListLayout", frame)
+    layout.Padding = UDim.new(0, 12)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    section.Layout = layout
+    
+    local padding = Instance.new("UIPadding", frame)
+    padding.PaddingTop = UDim.new(0, 10)
+    padding.PaddingBottom = UDim.new(0, 10)
+    padding.PaddingLeft = UDim.new(0.0225, 0)
+    
+    section.Frame = frame
+    self.Sections[#self.Sections + 1] = section
+    
+    return section
+end
+
+-- Element Creation Methods
+function Section:AddToggle(label, default, callback)
+    local frame = Instance.new("Frame", self.Frame)
+    frame.Name = "Toggle"
+    frame.BackgroundTransparency = 1
+    frame.Size = UDim2.new(0, 0, 0, 16)
+    frame.BorderSizePixel = 0
+    frame.AutomaticSize = Enum.AutomaticSize.Y
+    
+    local layout = Instance.new("UIListLayout", frame)
+    layout.Padding = UDim.new(0, 7)
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    
+    local button = Instance.new("TextButton", frame)
+    button.Name = "togglebutton"
+    button.Text = ""
+    button.TextSize = 100
+    button.Size = UDim2.new(0, 10, 0, 10)
+    button.Position = UDim2.new(0, 0, 0.5, 0)
+    button.BorderSizePixel = 0
+    
+    local state = default or false
+    
+    local function updateToggle()
+        if state then
+            button.BackgroundColor3 = Config.Colors.Primary
+            button.BorderColor3 = Config.Colors.BorderLight
+        else
+            button.BackgroundColor3 = Config.Colors.Background
+            button.BorderColor3 = Config.Colors.BorderDim
+        end
+    end
+    
+    createStroke(button, Config.Colors.BorderLight, nil, Enum.ApplyStrokeMode.Border)
+    createStroke(button, nil, nil, Enum.ApplyStrokeMode.Border)
+    if state then
+        createShadow(button, Config.Colors.Primary, 0.5, 0, 8)
+    end
+    
+    local labelObj = Instance.new("TextLabel", frame)
+    labelObj.Text = label
+    labelObj.TextColor3 = Config.Colors.Text
+    labelObj.TextSize = 14
+    labelObj.TextXAlignment = Enum.TextXAlignment.Left
+    labelObj.TextYAlignment = Enum.TextYAlignment.Top
+    labelObj.FontFace = createFont(Config.Font, Config.FontRegular)
+    labelObj.Size = UDim2.new(1, 0, 1, 0)
+    labelObj.BackgroundTransparency = 1
+    labelObj.BorderSizePixel = 0
+    
+    updateToggle()
+    
+    button.MouseButton1Click:Connect(function()
+        state = not state
+        updateToggle()
+        if callback then callback(state) end
+    end)
+    
+    return {
+        Set = function(value)
+            state = value
+            updateToggle()
+            if callback then callback(state) end
+        end,
+        Get = function() return state end,
+        Toggle = function()
+            state = not state
+            updateToggle()
+            if callback then callback(state) end
+        end
+    }
+end
+
+function Section:AddKeybind(label, defaultKey, callback)
+    local frame = Instance.new("Frame", self.Frame)
+    frame.Name = "keybind"
+    frame.BackgroundTransparency = 1
+    frame.Size = UDim2.new(0, 0, 0, 16)
+    frame.BorderSizePixel = 0
+    frame.AutomaticSize = Enum.AutomaticSize.Y
+    
+    local layout = Instance.new("UIListLayout", frame)
+    layout.Padding = UDim.new(0, 7)
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    
+    local button = Instance.new("TextButton", frame)
+    button.Name = "togglebutton"
+    button.Text = ""
+    button.TextSize = 100
+    button.Size = UDim2.new(0, 10, 0, 10)
+    button.Position = UDim2.new(0, 0, 0.5, 0)
+    button.BorderSizePixel = 0
+    button.BackgroundColor3 = Config.Colors.Background
+    button.BorderColor3 = Config.Colors.BorderDim
+    
+    createStroke(button, Config.Colors.BorderLight, nil, Enum.ApplyStrokeMode.Border)
+    createStroke(button, nil, nil, Enum.ApplyStrokeMode.Border)
+    
+    local labelObj = Instance.new("TextLabel", frame)
+    labelObj.Text = label
+    labelObj.TextColor3 = Config.Colors.Text
+    labelObj.TextSize = 14
+    labelObj.TextXAlignment = Enum.TextXAlignment.Left
+    labelObj.TextYAlignment = Enum.TextYAlignment.Top
+    labelObj.FontFace = createFont(Config.Font, Config.FontRegular)
+    labelObj.Size = UDim2.new(1, 0, 1, 0)
+    labelObj.BackgroundTransparency = 1
+    labelObj.BorderSizePixel = 0
+    
+    local keyLabel = Instance.new("TextLabel", frame)
+    keyLabel.Text = string.format("[%s]", defaultKey or ".")
+    keyLabel.TextColor3 = Config.Colors.TextMuted
+    keyLabel.TextSize = 12
+    keyLabel.TextXAlignment = Enum.TextXAlignment.Right
+    keyLabel.FontFace = createFont(Config.Font, Config.FontBold)
+    keyLabel.Size = UDim2.new(0, 185, 0, 15)
+    keyLabel.Position = UDim2.new(24, 0, 0.03125, 0)
+    keyLabel.BackgroundTransparency = 1
+    keyLabel.BorderSizePixel = 0
+    
+    local currentKey = defaultKey or Enum.KeyCode.Period
+    local isListening = false
+    
+    local function updateKeyDisplay()
+        keyLabel.Text = string.format("[%s]", tostring(currentKey):gsub("Enum.KeyCode.", ""))
+    end
+    
+    updateKeyDisplay()
+    
+    button.MouseButton1Click:Connect(function()
+        isListening = not isListening
+        keyLabel.Text = "[...]"
+        keyLabel.TextColor3 = Config.Colors.Primary
+    end)
+    
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if isListening and not gameProcessed then
+            if input.UserInputType == Enum.UserInputType.Keyboard then
+                currentKey = input.KeyCode
+                isListening = false
+                keyLabel.TextColor3 = Config.Colors.TextMuted
+                updateKeyDisplay()
+                if callback then callback(currentKey) end
+            end
+        end
+    end)
+    
+    return {
+        SetKey = function(key)
+            currentKey = key
+            updateKeyDisplay()
+            if callback then callback(currentKey) end
+        end,
+        GetKey = function() return currentKey end
+    }
+end
+
+function Section:AddDropdown(label, options, default, callback)
+    local frame = Instance.new("Frame", self.Frame)
+    frame.Name = "dropdown"
+    frame.BackgroundTransparency = 1
+    frame.Size = UDim2.new(0, 205, 0, 15)
+    frame.BorderSizePixel = 0
+    frame.AutomaticSize = Enum.AutomaticSize.Y
+    
+    createStroke(frame, Config.Colors.BorderDim, nil, nil, Enum.LineJoinMode.Miter)
+    createPadding(frame, 5)
+    
+    local button = Instance.new("TextButton", frame)
+    button.Text = default or label
+    button.TextColor3 = Config.Colors.Text
+    button.TextSize = 13
+    button.TextXAlignment = Enum.TextXAlignment.Left
+    button.FontFace = createFont(Config.Font, Config.FontBold)
+    button.Size = UDim2.new(0, 205, 0, 15)
+    button.BackgroundTransparency = 1
+    button.BorderSizePixel = 0
+    button.AutomaticSize = Enum.AutomaticSize.Y
+    
+    local arrow = Instance.new("ImageLabel", frame)
+    arrow.Image = "rbxassetid://15554886440"
+    arrow.ImageColor3 = Color3.fromRGB(255, 254, 255)
+    arrow.Size = UDim2.new(0, 25, 0, 25)
+    arrow.Position = UDim2.new(0.895, 0, -0.455, 2)
+    arrow.BackgroundTransparency = 1
+    arrow.BorderSizePixel = 0
+    
+    -- Dropdown frame (will be repositioned)
+    local dropdownFrame = Instance.new("Frame", self.Parent.Parent.Parent.Gui)
+    dropdownFrame.Name = "dropdown frame"
+    dropdownFrame.BackgroundColor3 = Config.Colors.Background
+    dropdownFrame.Size = UDim2.new(0, 205, 0, 0)
+    dropdownFrame.AutomaticSize = Enum.AutomaticSize.Y
+    dropdownFrame.BorderSizePixel = 0
+    dropdownFrame.Visible = false
+    dropdownFrame.Position = UDim2.new(-0.43963, 0, -0.00121, 0)
+    
+    createStroke(dropdownFrame, Config.Colors.BorderDim)
+    
+    local padding = Instance.new("UIPadding", dropdownFrame)
+    padding.PaddingTop = UDim.new(0, 5)
+    padding.PaddingBottom = UDim.new(0, 5)
+    
+    local layout = Instance.new("UIListLayout", dropdownFrame)
+    layout.Padding = UDim.new(0, 5)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    
+    local selectedOption = default
+    local optionButtons = {}
+    
+    local function updateDropdownPosition()
+        local absPos = frame.AbsolutePosition
+        dropdownFrame.Position = UDim2.new(0, absPos.X, 0, absPos.Y + frame.AbsoluteSize.Y)
+        dropdownFrame.Size = UDim2.new(0, frame.AbsoluteSize.X, 0, 0)
+    end
+    
+    local function createOption(option)
+        local optButton = Instance.new("TextButton", dropdownFrame)
+        optButton.Name = (option == selectedOption) and "selection" or "unselected"
+        optButton.Text = option
+        optButton.TextColor3 = (option == selectedOption) and Config.Colors.Text or Config.Colors.TextDim
+        optButton.TextSize = 14
+        optButton.FontFace = createFont(Config.Font, Config.FontBold)
+        optButton.Size = UDim2.new(1, 0, 0, 16)
+        optButton.BackgroundColor3 = Config.Colors.Background
+        optButton.BorderSizePixel = 0
+        
+        optButton.MouseButton1Click:Connect(function()
+            selectedOption = option
+            button.Text = option
+            dropdownFrame.Visible = false
+            
+            -- Update colors
+            for _, btn in ipairs(dropdownFrame:GetChildren()) do
+                if btn:IsA("TextButton") then
+                    btn.Name = (btn.Text == option) and "selection" or "unselected"
+                    btn.TextColor3 = (btn.Text == option) and Config.Colors.Text or Config.Colors.TextDim
+                end
+            end
+            
+            if callback then callback(option) end
+        end)
+        
+        return optButton
+    end
+    
+    for _, option in ipairs(options) do
+        createOption(option)
+    end
+    
+    button.MouseButton1Click:Connect(function()
+        dropdownFrame.Visible = not dropdownFrame.Visible
+        if dropdownFrame.Visible then
+            updateDropdownPosition()
+        end
+    end)
+    
+    return {
+        SetOptions = function(newOptions)
+            -- Clear existing options
+            for _, child in ipairs(dropdownFrame:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child:Destroy()
+                end
+            end
+            for _, option in ipairs(newOptions) do
+                createOption(option)
+            end
+        end,
+        GetSelected = function() return selectedOption end,
+        SetSelected = function(option)
+            selectedOption = option
+            button.Text = option
+            for _, btn in ipairs(dropdownFrame:GetChildren()) do
+                if btn:IsA("TextButton") then
+                    btn.Name = (btn.Text == option) and "selection" or "unselected"
+                    btn.TextColor3 = (btn.Text == option) and Config.Colors.Text or Config.Colors.TextDim
+                end
+            end
+            if callback then callback(option) end
+        end
+    }
+end
+
+function Section:AddSlider(label, min, max, default, callback)
+    local frame = Instance.new("Frame", self.Frame)
+    frame.Name = "slider"
+    frame.BackgroundTransparency = 1
+    frame.Size = UDim2.new(0, 205, 0, 30)
+    frame.BorderSizePixel = 0
+    frame.AutomaticSize = Enum.AutomaticSize.Y
+    
+    createPadding(frame, nil, nil, nil, 4)
+    
+    local title = Instance.new("TextLabel", frame)
+    title.Name = "Title"
+    title.Text = label
+    title.TextColor3 = Config.Colors.Text
+    title.TextSize = 14
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.TextYAlignment = Enum.TextYAlignment.Top
+    title.FontFace = createFont(Config.Font, Config.FontBold)
+    title.Size = UDim2.new(0, 205, 0, 15)
+    title.BackgroundTransparency = 1
+    title.BorderSizePixel = 0
+    
+    local sliderBase = Instance.new("Frame", frame)
+    sliderBase.Name = "slider base"
+    sliderBase.BackgroundTransparency = 1
+    sliderBase.Size = UDim2.new(0, 205, 0, 15)
+    sliderBase.Position = UDim2.new(0, 0, 0.59524, 0)
+    sliderBase.BorderSizePixel = 0
+    
+    createStroke(sliderBase, Config.Colors.BorderDim)
+    
+    local fill = Instance.new("Frame", sliderBase)
+    fill.Name = "slider fill"
+    fill.BackgroundColor3 = Config.Colors.Primary
+    fill.Size = UDim2.new(0, 0, 0, 15)
+    fill.BorderSizePixel = 0
+    fill.SizeConstraint = Enum.SizeConstraint.RelativeXX
+    
+    createShadow(fill, Config.Colors.Primary, 0.5, 0, 8)
+    
+    local valueLabel = Instance.new("TextLabel", sliderBase)
+    valueLabel.Text = tostring(default or min) .. "px"
+    valueLabel.TextColor3 = Config.Colors.Text
+    valueLabel.TextSize = 14
+    valueLabel.FontFace = createFont(Config.Font, Config.FontRegular)
+    valueLabel.Size = UDim2.new(0, 205, 0, 15)
+    valueLabel.ZIndex = 2
+    valueLabel.BackgroundTransparency = 1
+    valueLabel.BorderSizePixel = 0
+    
+    local currentValue = default or min
+    
+    local function updateSlider(value)
+        local clamped = math.clamp(value, min, max)
+        currentValue = clamped
+        local percent = (clamped - min) / (max - min)
+        fill.Size = UDim2.new(percent, 0, 0, 15)
+        valueLabel.Text = math.round(clamped) .. "px"
+        if callback then callback(clamped) end
+    end
+    
+    updateSlider(currentValue)
+    
+    local dragging = false
+    
+    sliderBase.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    
+    sliderBase.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    
+    sliderBase.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local pos = input.Position.X - sliderBase.AbsolutePosition.X
+            local percent = math.clamp(pos / sliderBase.AbsoluteSize.X, 0, 1)
+            local value = min + (max - min) * percent
+            updateSlider(value)
+        end
+    end)
+    
+    return {
+        Set = function(value)
+            updateSlider(value)
+        end,
+        Get = function()
+            return currentValue
+        end
+    }
+end
+
+-- Create a new window instance
+function UILibrary.NewWindow(title, size)
+    return Window.new(title, size)
+end
+
+-- Export
+return UILibrary
