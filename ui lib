@@ -1,6 +1,5 @@
 -- Arch.nem UI Library
 -- A dark-themed UI library for Roblox with a modern aesthetic
--- Original design from converted GUI, refactored into a reusable library
 
 local UILibrary = {}
 UILibrary.__index = UILibrary
@@ -18,7 +17,6 @@ local Theme = {
     TextSecondary = Color3.fromRGB(48, 50, 51),
     TextAccent = Color3.fromRGB(29, 48, 52),
     TextMuted = Color3.fromRGB(113, 114, 115),
-    Shadow = Color3.fromRGB(0, 0, 0),
 }
 
 -- Fonts
@@ -72,6 +70,7 @@ function UILibrary.new(title, size, position)
     self.Window = Instance.new("ScreenGui", self.PlayerGui)
     self.Window.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     self.Window.Name = "ArchNemUI"
+    self.Window.ResetOnSpawn = false
     
     -- Main Frame
     self.MainFrame = Instance.new("Frame", self.Window)
@@ -91,7 +90,7 @@ function UILibrary.new(title, size, position)
     self.TitleBar = Instance.new("Frame", self.MainFrame)
     self.TitleBar.BorderSizePixel = 0
     self.TitleBar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    self.TitleBar.Size = UDim2.new(0, self.MainFrame.Size.X.Offset, 0, 25)
+    self.TitleBar.Size = UDim2.new(1, 0, 0, 25)
     self.TitleBar.BorderColor3 = Color3.fromRGB(0, 0, 0)
     self.TitleBar.Name = "Top bar"
     self.TitleBar.BackgroundTransparency = 1
@@ -112,12 +111,13 @@ function UILibrary.new(title, size, position)
     titleLabel.Size = UDim2.new(0, 200, 0, 26)
     titleLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
     titleLabel.Text = string.format('<font color="rgb(24, 43, 55)">Arch</font><font color="rgb(255,255,255)">.nem</font>')
+    titleLabel.Position = UDim2.new(0, 0, 0, 0)
     
     -- Tabs container
     self.TabsContainer = Instance.new("Frame", self.TitleBar)
     self.TabsContainer.BorderSizePixel = 0
     self.TabsContainer.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    self.TabsContainer.Size = UDim2.new(0, 380, 0, 26)
+    self.TabsContainer.Size = UDim2.new(0, 380, 1, 0)
     self.TabsContainer.Position = UDim2.new(0.28113, 0, 0, 0)
     self.TabsContainer.BorderColor3 = Color3.fromRGB(0, 0, 0)
     self.TabsContainer.BackgroundTransparency = 1
@@ -126,12 +126,13 @@ function UILibrary.new(title, size, position)
     tabsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
     tabsLayout.HorizontalFlex = Enum.UIFlexAlignment.SpaceBetween
     tabsLayout.VerticalFlex = Enum.UIFlexAlignment.Fill
+    tabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
     
     -- Section frame
     self.Section = Instance.new("Frame", self.MainFrame)
     self.Section.BorderSizePixel = 0
     self.Section.BackgroundColor3 = Theme.BackgroundSecondary
-    self.Section.Size = UDim2.new(0, self.MainFrame.Size.X.Offset - 20, 0, self.MainFrame.Size.Y.Offset - 34)
+    self.Section.Size = UDim2.new(1, -20, 1, -34)
     self.Section.Position = UDim2.new(0.01825, 0, 0.06533, 0)
     self.Section.BorderColor3 = Color3.fromRGB(0, 0, 0)
     self.Section.Name = "Section"
@@ -153,11 +154,12 @@ function UILibrary.new(title, size, position)
     self.ScrollingFrame = Instance.new("ScrollingFrame", self.Section)
     self.ScrollingFrame.Active = true
     self.ScrollingFrame.BorderSizePixel = 0
-    self.ScrollingFrame.BackgroundColor3 = Theme.Background
+    self.ScrollingFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     self.ScrollingFrame.Size = UDim2.new(1, 0, 1, 0)
     self.ScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 0, 0)
     self.ScrollingFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
     self.ScrollingFrame.ScrollBarThickness = 0
+    self.ScrollingFrame.BackgroundTransparency = 1
     
     createUIPadding(self.ScrollingFrame, {
         Top = UDim.new(0, 9),
@@ -166,8 +168,8 @@ function UILibrary.new(title, size, position)
         Right = UDim.new(0, 9)
     })
     
-    local scrollLayout = createUIListLayout(self.ScrollingFrame, Enum.FillDirection.Vertical, 12)
-    scrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    self.ScrollLayout = createUIListLayout(self.ScrollingFrame, Enum.FillDirection.Vertical, 12)
+    self.ScrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
     
     self.Tabs = {}
     self.CurrentTab = nil
@@ -187,13 +189,12 @@ function UILibrary:AddTab(name)
     tabButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     tabButton.FontFace = Fonts.Jura
     tabButton.BackgroundTransparency = 1
-    tabButton.Size = UDim2.new(0, 70, 0, 26)
+    tabButton.Size = UDim2.new(0, 70, 1, 0)
     tabButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
     tabButton.Text = name
-    tabButton.Name = "Tab"
-    tabButton.Position = UDim2.new(0.99737, 0, 0, 0)
+    tabButton.Name = name .. "Tab"
     
-    -- Create tab content container (hidden by default)
+    -- Create tab content container
     local tabContent = Instance.new("Frame", self.ScrollingFrame)
     tabContent.BorderSizePixel = 0
     tabContent.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -215,6 +216,7 @@ function UILibrary:AddTab(name)
     
     -- Select first tab by default
     if not self.CurrentTab then
+        self.CurrentTab = name
         self:SelectTab(name)
     end
     
@@ -228,16 +230,21 @@ end
 
 -- Select a tab
 function UILibrary:SelectTab(name)
-    if self.CurrentTab then
-        self.Tabs[self.CurrentTab].Button.TextColor3 = Theme.TextSecondary
-        self.Tabs[self.CurrentTab].Content.Visible = false
+    if not self.Tabs[name] then return end
+    
+    -- Hide all tabs
+    for tabName, tabData in pairs(self.Tabs) do
+        tabData.Button.TextColor3 = Theme.TextSecondary
+        tabData.Content.Visible = false
     end
     
+    -- Show selected tab
     self.CurrentTab = name
     self.Tabs[name].Button.TextColor3 = Theme.TextAccent
     self.Tabs[name].Content.Visible = true
     
-    -- Update scrolling frame size
+    -- Update scrolling frame canvas size after a small delay
+    task.wait(0.05)
     self.ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, self.Tabs[name].Content.AbsoluteSize.Y + 20)
 end
 
@@ -246,11 +253,10 @@ function UILibrary:Toggle(parent, label, default, callback)
     local container = Instance.new("Frame", parent)
     container.BorderSizePixel = 0
     container.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    container.Size = UDim2.new(0, 0, 0, 16)
+    container.Size = UDim2.new(1, 0, 0, 16)
     container.BorderColor3 = Color3.fromRGB(0, 0, 0)
     container.BackgroundTransparency = 1
     container.Name = label .. "Toggle"
-    container.AutomaticSize = Enum.AutomaticSize.X
     
     local layout = createUIListLayout(container, Enum.FillDirection.Horizontal, 8)
     layout.VerticalAlignment = Enum.VerticalAlignment.Center
@@ -266,7 +272,6 @@ function UILibrary:Toggle(parent, label, default, callback)
     toggleButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
     toggleButton.Text = ""
     toggleButton.Name = "togglebutton"
-    toggleButton.Position = UDim2.new(0, 0, 0.5, 0)
     
     createStroke(toggleButton, Theme.Border)
     local stroke2 = createStroke(toggleButton, Theme.Border, true)
@@ -296,6 +301,9 @@ function UILibrary:Toggle(parent, label, default, callback)
         if callback then callback(state) end
     end)
     
+    -- Update parent size after adding
+    container.Size = UDim2.new(1, 0, 0, 16)
+    
     return {
         SetState = function(newState)
             state = newState
@@ -312,7 +320,7 @@ function UILibrary:Keybind(parent, label, defaultKey, callback)
     local container = Instance.new("Frame", parent)
     container.BorderSizePixel = 0
     container.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    container.Size = UDim2.new(0, 100, 0, 16)
+    container.Size = UDim2.new(1, 0, 0, 16)
     container.BorderColor3 = Color3.fromRGB(0, 0, 0)
     container.BackgroundTransparency = 1
     container.Name = label .. "Keybind"
@@ -327,27 +335,41 @@ function UILibrary:Keybind(parent, label, defaultKey, callback)
     keyButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
     keyButton.Text = defaultKey or "None"
     keyButton.Name = "button"
+    keyButton.Position = UDim2.new(0, 0, 0, 0)
     
-    createStroke(keyButton, Theme.Border, true)
-    local stroke2 = createStroke(keyButton, Theme.BorderAccent)
+    createStroke(keyButton, Theme.BorderAccent)
+    local stroke2 = createStroke(keyButton, Theme.Border, true)
     stroke2.BorderOffset = UDim.new(0, 1)
     
     local key = defaultKey or "None"
     local listening = false
+    local connection
     
     keyButton.MouseButton1Click:Connect(function()
+        if listening then
+            listening = false
+            if connection then 
+                connection:Disconnect()
+                connection = nil
+            end
+            keyButton.Text = key
+            return
+        end
+        
         listening = true
         keyButton.Text = "..."
     end)
     
     -- Input handling
     local userInputService = game:GetService("UserInputService")
-    local connection
     
     connection = userInputService.InputBegan:Connect(function(input, gameProcessed)
         if listening and not gameProcessed then
             listening = false
-            if connection then connection:Disconnect() end
+            if connection then 
+                connection:Disconnect()
+                connection = nil
+            end
             
             local keyName = input.KeyCode.Name
             if input.KeyCode == Enum.KeyCode.Unknown then
@@ -374,8 +396,7 @@ function UILibrary:Slider(parent, label, min, max, default, callback)
     local container = Instance.new("Frame", parent)
     container.BorderSizePixel = 0
     container.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    container.Size = UDim2.new(0, 205, 0, 30)
-    container.Position = UDim2.new(0, 0, 0.78169, 0)
+    container.Size = UDim2.new(1, 0, 0, 30)
     container.BorderColor3 = Color3.fromRGB(0, 0, 0)
     container.Name = label .. "Slider"
     container.BackgroundTransparency = 1
@@ -392,7 +413,7 @@ function UILibrary:Slider(parent, label, min, max, default, callback)
     title.FontFace = Fonts.Jura
     title.TextColor3 = Theme.TextPrimary
     title.BackgroundTransparency = 1
-    title.Size = UDim2.new(0, 205, 0, 15)
+    title.Size = UDim2.new(1, 0, 0, 15)
     title.BorderColor3 = Color3.fromRGB(0, 0, 0)
     title.Text = label
     title.Name = "Title"
@@ -400,7 +421,7 @@ function UILibrary:Slider(parent, label, min, max, default, callback)
     local sliderBase = Instance.new("Frame", container)
     sliderBase.BorderSizePixel = 0
     sliderBase.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    sliderBase.Size = UDim2.new(0, 205, 0, 15)
+    sliderBase.Size = UDim2.new(1, 0, 0, 15)
     sliderBase.Position = UDim2.new(0, 0, 0.59524, 0)
     sliderBase.BorderColor3 = Color3.fromRGB(0, 0, 0)
     sliderBase.Name = "slider base"
@@ -419,7 +440,7 @@ function UILibrary:Slider(parent, label, min, max, default, callback)
     valueLabel.FontFace = Fonts.Jura
     valueLabel.TextColor3 = Theme.TextPrimary
     valueLabel.BackgroundTransparency = 1
-    valueLabel.Size = UDim2.new(0, 205, 0, 15)
+    valueLabel.Size = UDim2.new(1, 0, 0, 15)
     valueLabel.BorderColor3 = Color3.fromRGB(0, 0, 0)
     valueLabel.Text = tostring(default or 0)
     valueLabel.Name = "ValueLabel"
@@ -449,8 +470,8 @@ function UILibrary:Slider(parent, label, min, max, default, callback)
     
     local function getMousePosition()
         local mouse = game:GetService("Players").LocalPlayer:GetMouse()
-        local relativeX = mouse.X - sliderBase.AbsolutePosition.X
-        local percentage = math.clamp(relativeX / sliderBase.AbsoluteSize.X, 0, 1)
+        local relativeX = math.clamp(mouse.X - sliderBase.AbsolutePosition.X, 0, sliderBase.AbsoluteSize.X)
+        local percentage = relativeX / sliderBase.AbsoluteSize.X
         return min + (max - min) * percentage
     end
     
@@ -467,7 +488,7 @@ function UILibrary:Slider(parent, label, min, max, default, callback)
         end
     end)
     
-    sliderBase.MouseMove:Connect(function()
+    game:GetService("RunService").RenderStepped:Connect(function()
         if dragging then
             updateSlider(getMousePosition())
         end
@@ -491,6 +512,7 @@ function UILibrary:Dropdown(parent, label, options, default, callback)
     container.Position = UDim2.new(0.19861, 0, 0.25732, 0)
     container.BorderColor3 = Color3.fromRGB(0, 0, 0)
     container.Name = "dropdown frame"
+    container.BackgroundTransparency = 0
     
     createUIPadding(container, {Top = UDim.new(0, 5), Bottom = UDim.new(0, 5)})
     createStroke(container, Theme.AccentLight)
@@ -508,6 +530,7 @@ function UILibrary:Dropdown(parent, label, options, default, callback)
     selected.BorderColor3 = Color3.fromRGB(0, 0, 0)
     selected.Name = "selection"
     selected.Text = default or label
+    selected.BackgroundTransparency = 0
     
     local optionsList = {}
     local isOpen = false
@@ -524,6 +547,7 @@ function UILibrary:Dropdown(parent, label, options, default, callback)
         btn.Name = "unselected"
         btn.Text = option
         btn.Visible = false
+        btn.BackgroundTransparency = 0
         
         btn.MouseButton1Click:Connect(function()
             selected.Text = option
