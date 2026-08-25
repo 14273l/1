@@ -1,57 +1,32 @@
 --[[
-	UI Library – based on the Vergil.lol design.
-	Provides: Window, Tab, Section, Slider, Toggle, Dropdown.
-	Usage example:
-		local UI = require(script.Parent.UI)
-		local main = UI:CreateWindow({
-			Title = "My Menu",
-			Parent = game.Players.LocalPlayer.PlayerGui,
-			Size = UDim2.new(0, 498, 0, 598),
-		})
-		local aimTab = main:CreateTab("Aimbot")
-		local general = aimTab:CreateSection("General")
-		general:CreateSlider({
-			Title = "Sensitivity",
-			Min = 0, Max = 100, Default = 50,
-			Callback = function(v) print(v) end
-		})
-		general:CreateToggle({
-			Title = "Enabled",
-			Default = true,
-			Callback = function(v) print(v) end
-		})
-		general:CreateDropdown({
-			Title = "Mode",
-			Options = {"Option A", "Option B"},
-			Default = "Option A",
-			Callback = function(v) print(v) end
-		})
+    UI Library – based on the Vergil.lol design.
+    Provides: Window, Tab, Section, Slider, Toggle, Dropdown.
 --]]
 
 local UI = {}
 UI.__index = UI
 
 -- ------------------------------------------------------------------------
--- Helpers (same as original)
+-- Helpers
 -- ------------------------------------------------------------------------
 local function create(class: string, properties: {}?): Instance | boolean
-	local success, instance = pcall(Instance.new, class)
-	if not success then return false end
-	if properties then
-		for key, value in next, properties do
-			local succ, err = pcall(function()
-				(instance :: any)[key] = value
-			end)
-			if not succ then
-				warn(err)
-				return false
-			end
-		end
-	end
-	return instance
+    local success, instance = pcall(Instance.new, class)
+    if not success then return false end
+    if properties then
+        for key, value in next, properties do
+            local succ, err = pcall(function()
+                (instance :: any)[key] = value
+            end)
+            if not succ then
+                warn(err)
+                return false
+            end
+        end
+    end
+    return instance
 end
 
--- Abbreviations from original
+-- Abbreviations
 local CSK = ColorSequenceKeypoint.new
 local NSK = NumberSequenceKeypoint.new
 local BSP = Enum.BorderStrokePosition
@@ -94,1327 +69,1311 @@ local CS = ColorSequence.new
 local NS = NumberSequence.new
 
 -- ------------------------------------------------------------------------
--- Internal styling constants (from the original design)
+-- Styling constants
 -- ------------------------------------------------------------------------
 local STYLE = {
-	BgColor = RGB(23,23,23),
-	BgDark = RGB(20,20,20),
-	BgDarker = RGB(19,19,19),
-	Accent = RGB(175,187,239),
-	AccentDim = RGB(113,118,135),
-	TextWhite = RGB(255,255,255),
-	TextGray = RGB(120,120,119),
-	BorderColor = RGB(40,40,40),
-	BorderLight = RGB(35,35,34),
-	FontTitle = FN("rbxasset://fonts/families/Zekton.json", FW.Bold, FS.Normal),
-	FontBody = FN("rbxasset://fonts/families/Sarpanch.json", FW.Regular, FS.Normal),
-	FontBold = FN("rbxasset://fonts/families/Sarpanch.json", FW.Bold, FS.Normal),
+    BgColor = RGB(23, 23, 23),
+    BgDark = RGB(20, 20, 20),
+    BgDarker = RGB(19, 19, 19),
+    Accent = RGB(175, 187, 239),
+    AccentDim = RGB(113, 118, 135),
+    TextWhite = RGB(255, 255, 255),
+    TextGray = RGB(120, 120, 119),
+    BorderColor = RGB(40, 40, 40),
+    BorderLight = RGB(35, 35, 34),
+    FontTitle = FN("rbxasset://fonts/families/Zekton.json", FW.Bold, FS.Normal),
+    FontBody = FN("rbxasset://fonts/families/Sarpanch.json", FW.Regular, FS.Normal),
+    FontBold = FN("rbxasset://fonts/families/Sarpanch.json", FW.Bold, FS.Normal),
 }
 
 -- ------------------------------------------------------------------------
--- Utilities for creating styled elements (internal)
+-- Internal styling utilities
 -- ------------------------------------------------------------------------
 local function makeGradient(colors)
-	-- colors: array of {position, Color3}
-	local kps = {}
-	for _, c in ipairs(colors) do
-		table.insert(kps, CSK(c[1], c[2]))
-	end
-	return CS(unpack(kps))
+    local kps = {}
+    for _, c in ipairs(colors) do
+        table.insert(kps, CSK(c[1], c[2]))
+    end
+    return CS(unpack(kps))
 end
 
 local function addShadow(parent, blur, color, transparency, spread)
-	spread = spread or UFO(0,0)
-	local shadow = create("UIShadow", {
-		Parent = parent,
-		Transparency = transparency or 0.5,
-		BlurRadius = UD(0, blur or 20),
-		Color = color or STYLE.Accent,
-		Spread = spread,
-	})
-	return shadow
+    spread = spread or UFO(0, 0)
+    local shadow = create("UIShadow", {
+        Parent = parent,
+        Transparency = transparency or 0.5,
+        BlurRadius = UD(0, blur or 20),
+        Color = color or STYLE.Accent,
+        Spread = spread,
+    })
+    return shadow
 end
 
 local function addStroke(parent, color, thickness, mode, offset, position)
-	local props = {
-		Parent = parent,
-		Color = color or STYLE.BorderColor,
-		LineJoinMode = Enum.LineJoinMode.Miter,
-		ApplyStrokeMode = mode or ASM.Border,
-	}
-	if thickness then props.Thickness = thickness end
-	if offset then props.BorderOffset = UD(0, offset) end
-	if position then props.BorderStrokePosition = position end
-	return create("UIStroke", props)
+    local props = {
+        Parent = parent,
+        Color = color or STYLE.BorderColor,
+        LineJoinMode = Enum.LineJoinMode.Miter,
+        ApplyStrokeMode = mode or ASM.Border,
+    }
+    if thickness then props.Thickness = thickness end
+    if offset then props.BorderOffset = UD(0, offset) end
+    if position then props.BorderStrokePosition = position end
+    return create("UIStroke", props)
 end
 
 local function addPadding(parent, top, bottom, left, right)
-	return create("UIPadding", {
-		Parent = parent,
-		PaddingTop = UD(0, top or 0),
-		PaddingBottom = UD(0, bottom or 0),
-		PaddingLeft = UD(0, left or 0),
-		PaddingRight = UD(0, right or 0),
-	})
+    return create("UIPadding", {
+        Parent = parent,
+        PaddingTop = UD(0, top or 0),
+        PaddingBottom = UD(0, bottom or 0),
+        PaddingLeft = UD(0, left or 0),
+        PaddingRight = UD(0, right or 0),
+    })
 end
 
 local function addListLayout(parent, direction, padding, sort, hflex, vflex, valign)
-	return create("UIListLayout", {
-		Parent = parent,
-		FillDirection = direction or FD.Vertical,
-		Padding = UD(0, padding or 0),
-		SortOrder = sort or SO.LayoutOrder,
-		HorizontalFlex = hflex or UFA.Fill,
-		VerticalFlex = vflex or UFA.Fill,
-		VerticalAlignment = valign or Enum.VerticalAlignment.Top,
-	})
+    return create("UIListLayout", {
+        Parent = parent,
+        FillDirection = direction or FD.Vertical,
+        Padding = UD(0, padding or 0),
+        SortOrder = sort or SO.LayoutOrder,
+        HorizontalFlex = hflex or UFA.Fill,
+        VerticalFlex = vflex or UFA.Fill,
+        VerticalAlignment = valign or Enum.VerticalAlignment.Top,
+    })
 end
 
 local function makeHighlight(parent, colors, size)
-	local h = create("Frame", {
-		Parent = parent,
-		Name = "highlight",
-		BorderColor3 = RGB(0,0,0),
-		Size = size or UD2(1,0,0,1),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	create("UIGradient", {
-		Parent = h,
-		Color = makeGradient(colors or {
-			{0, RGB(18,18,18)},
-			{0.25, STYLE.Accent},
-			{0.5, RGB(18,18,18)},
-			{0.75, STYLE.Accent},
-			{1, RGB(18,18,18)},
-		}),
-	})
-	return h
+    local h = create("Frame", {
+        Parent = parent,
+        Name = "highlight",
+        BorderColor3 = RGB(0, 0, 0),
+        Size = size or UD2(1, 0, 0, 1),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    create("UIGradient", {
+        Parent = h,
+        Color = makeGradient(colors or {
+            {0, RGB(18, 18, 18)},
+            {0.25, STYLE.Accent},
+            {0.5, RGB(18, 18, 18)},
+            {0.75, STYLE.Accent},
+            {1, RGB(18, 18, 18)},
+        }),
+    })
+    return h
 end
 
 -- ------------------------------------------------------------------------
 -- Main UI class
 -- ------------------------------------------------------------------------
 function UI:CreateWindow(config)
-	config = config or {}
-	local parent = config.Parent or game.StarterGui
-	local title = config.Title or "Window"
-	local size = config.Size or UFO(498, 598)
-	local pos = config.Position or UFS(0.5, 0.5)
+    config = config or {}
+    local parent = config.Parent or game.StarterGui
+    local title = config.Title or "Window"
+    local size = config.Size or UFO(498, 598)
+    local pos = config.Position or UFS(0.5, 0.5)
 
-	-- ScreenGui
-	local screen = create("ScreenGui", {
-		Parent = parent,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-	})
+    -- ScreenGui
+    local screen = create("ScreenGui", {
+        Parent = parent,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    })
 
-	-- Main window frame
-	local window = create("Frame", {
-		Parent = screen,
-		Name = "window",
-		AnchorPoint = V2(0.5,0.5),
-		Position = pos,
-		Size = size,
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = STYLE.BgColor,
-	})
-	addPadding(window, 10,10,10,10)
-	addShadow(window, 20, STYLE.Accent, 0.5)
-	addStroke(window, STYLE.BorderLight, 1, ASM.Border)
-	addStroke(window, STYLE.BorderLight, 1, ASM.Border, 1)
+    -- Main window frame
+    local window = create("Frame", {
+        Parent = screen,
+        Name = "window",
+        AnchorPoint = V2(0.5, 0.5),
+        Position = pos,
+        Size = size,
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = STYLE.BgColor,
+    })
+    addPadding(window, 10, 10, 10, 10)
+    addShadow(window, 20, STYLE.Accent, 0.5)
+    addStroke(window, STYLE.BorderLight, 1, ASM.Border)
+    addStroke(window, STYLE.BorderLight, 1, ASM.Border, 1)
 
-	-- Title bar
-	local titleBar = create("Frame", {
-		Parent = window,
-		Name = "title",
-		BackgroundTransparency = 1,
-		Size = UD2(1,0,0,30),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	addPadding(titleBar, 0,0,0,0)
+    -- Title bar
+    local titleBar = create("Frame", {
+        Parent = window,
+        Name = "title",
+        BackgroundTransparency = 1,
+        Size = UD2(1, 0, 0, 30),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    addPadding(titleBar, 0, 0, 0, 0)
 
-	local titleLabel = create("TextLabel", {
-		Parent = titleBar,
-		FontFace = STYLE.FontTitle,
-		TextColor3 = RGB(255,255,255),
-		Text = title,
-		Size = UFS(1,1),
-		BackgroundTransparency = 1,
-		TextXAlignment = TXA.Left,
-		BorderSizePixel = 0,
-		RichText = true,
-		TextSize = 14,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	create("UIStroke", {
-		Parent = titleLabel,
-		BorderOffset = UD(0,1),
-		LineJoinMode = Enum.LineJoinMode.Miter,
-	})
-	create("UIGradient", {
-		Parent = titleLabel,
-		Color = makeGradient({
-			{0, RGB(249,248,255)},
-			{0.128, RGB(134,139,159)},
-			{0.233, RGB(101,108,131)},
-			{0.597, RGB(175,187,239)},
-			{1, RGB(175,187,239)},
-		}),
-	})
-	makeHighlight(titleBar, {
-		{0, RGB(18,18,18)},
-		{0.25, STYLE.Accent},
-		{0.5, RGB(18,18,18)},
-		{0.75, STYLE.Accent},
-		{1, RGB(18,18,18)},
-	}, UFO(497,1))
+    local titleLabel = create("TextLabel", {
+        Parent = titleBar,
+        FontFace = STYLE.FontTitle,
+        TextColor3 = RGB(255, 255, 255),
+        Text = title,
+        Size = UFS(1, 1),
+        BackgroundTransparency = 1,
+        TextXAlignment = TXA.Left,
+        BorderSizePixel = 0,
+        RichText = true,
+        TextSize = 14,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    create("UIStroke", {
+        Parent = titleLabel,
+        BorderOffset = UD(0, 1),
+        LineJoinMode = Enum.LineJoinMode.Miter,
+    })
+    create("UIGradient", {
+        Parent = titleLabel,
+        Color = makeGradient({
+            {0, RGB(249, 248, 255)},
+            {0.128, RGB(134, 139, 159)},
+            {0.233, RGB(101, 108, 131)},
+            {0.597, RGB(175, 187, 239)},
+            {1, RGB(175, 187, 239)},
+        }),
+    })
+    makeHighlight(titleBar, {
+        {0, RGB(18, 18, 18)},
+        {0.25, STYLE.Accent},
+        {0.5, RGB(18, 18, 18)},
+        {0.75, STYLE.Accent},
+        {1, RGB(18, 18, 18)},
+    }, UFO(497, 1))
 
-	-- Tab container (content area)
-	local tabContainer = create("Frame", {
-		Parent = window,
-		Name = "Tab window",
-		AnchorPoint = V2(0,1),
-		Position = UFS(0,1),
-		Size = UD2(1,0,1,-28),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = STYLE.BgColor,
-	})
-	addStroke(tabContainer, STYLE.BorderColor, 1, ASM.Border, nil, BSP.Inner)
-	addStroke(tabContainer, STYLE.BorderColor, 1, ASM.Border)
-	create("UIGradient", {
-		Parent = tabContainer,
-		Rotation = 270,
-		Color = makeGradient({
-			{0, RGB(121,120,122)},
-			{0.15, RGB(123,123,125)},
-			{1, RGB(255,255,255)},
-		}),
-	})
-	addListLayout(tabContainer, FD.Vertical, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
+    -- Tab container (content area)
+    local tabContainer = create("Frame", {
+        Parent = window,
+        Name = "Tab window",
+        AnchorPoint = V2(0, 1),
+        Position = UFS(0, 1),
+        Size = UD2(1, 0, 1, -28),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = STYLE.BgColor,
+    })
+    addStroke(tabContainer, STYLE.BorderColor, 1, ASM.Border, nil, BSP.Inner)
+    addStroke(tabContainer, STYLE.BorderColor, 1, ASM.Border)
+    create("UIGradient", {
+        Parent = tabContainer,
+        Rotation = 270,
+        Color = makeGradient({
+            {0, RGB(121, 120, 122)},
+            {0.15, RGB(123, 123, 125)},
+            {1, RGB(255, 255, 255)},
+        }),
+    })
+    addListLayout(tabContainer, FD.Vertical, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
 
-	-- Tab buttons bar
-	local tabButtons = create("Frame", {
-		Parent = tabContainer,
-		Name = "tab_buttons",
-		Size = UD2(1,-2,0,24),
-		Position = UFO(1,31),
-		BorderColor3 = RGB(0,0,0),
-		ZIndex = 2,
-		BorderSizePixel = 0,
-		BackgroundColor3 = STYLE.BgColor,
-	})
-	addPadding(tabButtons, 0,0,0,0)
-	addStroke(tabButtons, STYLE.BorderColor, 1, ASM.Border, nil, BSP.Inner)
-	create("UIGradient", {
-		Parent = tabButtons,
-		Rotation = 90,
-		Color = makeGradient({
-			{0, RGB(255,255,255)},
-			{1, RGB(200,200,200)},
-		}),
-	})
-	local tabBtnLayout = addListLayout(tabButtons, FD.Horizontal, 1, SO.LayoutOrder, UFA.Fill, UFA.Fill)
-	create("UIFlexItem", { Parent = tabButtons }) -- placeholder for flex
+    -- Tab buttons bar
+    local tabButtons = create("Frame", {
+        Parent = tabContainer,
+        Name = "tab_buttons",
+        Size = UD2(1, -2, 0, 24),
+        Position = UFO(1, 31),
+        BorderColor3 = RGB(0, 0, 0),
+        ZIndex = 2,
+        BorderSizePixel = 0,
+        BackgroundColor3 = STYLE.BgColor,
+    })
+    addPadding(tabButtons, 0, 0, 0, 0)
+    addStroke(tabButtons, STYLE.BorderColor, 1, ASM.Border, nil, BSP.Inner)
+    create("UIGradient", {
+        Parent = tabButtons,
+        Rotation = 90,
+        Color = makeGradient({
+            {0, RGB(255, 255, 255)},
+            {1, RGB(200, 200, 200)},
+        }),
+    })
+    local tabBtnLayout = addListLayout(tabButtons, FD.Horizontal, 1, SO.LayoutOrder, UFA.Fill, UFA.Fill)
+    create("UIFlexItem", { Parent = tabButtons })
 
-	-- Content frame (holds tab pages)
-	local contentFrame = create("Frame", {
-		Parent = tabContainer,
-		Name = "Frame",
-		LayoutOrder = 999,
-		BackgroundTransparency = 1,
-		Size = UFS(1,1),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	addPadding(contentFrame, 10,10,10,10)
-	addListLayout(contentFrame, FD.Vertical, 8, SO.LayoutOrder, UFA.Fill, UFA.Fill)
+    -- Content frame (holds tab pages)
+    local contentFrame = create("Frame", {
+        Parent = tabContainer,
+        Name = "Frame",
+        LayoutOrder = 999,
+        BackgroundTransparency = 1,
+        Size = UFS(1, 1),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    addPadding(contentFrame, 10, 10, 10, 10)
+    addListLayout(contentFrame, FD.Vertical, 8, SO.LayoutOrder, UFA.Fill, UFA.Fill)
 
-	-- Bottom bar
-	local bottomBar = create("Frame", {
-		Parent = contentFrame,
-		Name = "bottom bar",
-		LayoutOrder = 999,
-		AnchorPoint = V2(0,1),
-		Position = UFS(0,1),
-		Size = UD2(1,0,0,24),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = STYLE.BgColor,
-	})
-	create("UIFlexItem", { Parent = bottomBar })
-	addStroke(bottomBar, STYLE.BorderColor, 1, ASM.Border, nil, BSP.Inner)
-	addStroke(bottomBar, STYLE.BorderColor, 2, ASM.Border, 1, BSP.Inner)
-	addPadding(bottomBar, 0,0,8,8)
-	local bottomLayout = addListLayout(bottomBar, FD.Horizontal, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
+    -- Bottom bar
+    local bottomBar = create("Frame", {
+        Parent = contentFrame,
+        Name = "bottom bar",
+        LayoutOrder = 999,
+        AnchorPoint = V2(0, 1),
+        Position = UFS(0, 1),
+        Size = UD2(1, 0, 0, 24),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = STYLE.BgColor,
+    })
+    create("UIFlexItem", { Parent = bottomBar })
+    addStroke(bottomBar, STYLE.BorderColor, 1, ASM.Border, nil, BSP.Inner)
+    addStroke(bottomBar, STYLE.BorderColor, 2, ASM.Border, 1, BSP.Inner)
+    addPadding(bottomBar, 0, 0, 8, 8)
+    local bottomLayout = addListLayout(bottomBar, FD.Horizontal, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
 
-	-- Left bottom text
-	local leftText = create("TextLabel", {
-		Parent = bottomBar,
-		RichText = true,
-		TextColor3 = RGB(255,255,255),
-		Text = title,
-		TextStrokeTransparency = 0,
-		Size = UFS(1,1),
-		BackgroundTransparency = 1,
-		TextXAlignment = TXA.Left,
-		BorderSizePixel = 0,
-		FontFace = STYLE.FontTitle,
-		TextSize = 14,
-		BackgroundColor3 = STYLE.BgColor,
-	})
-	create("UIGradient", {
-		Parent = leftText,
-		Color = makeGradient({
-			{0, RGB(249,248,255)},
-			{0.128, RGB(134,139,159)},
-			{0.233, RGB(101,108,131)},
-			{0.597, RGB(175,187,239)},
-			{1, RGB(175,187,239)},
-		}),
-	})
+    -- Left bottom text
+    local leftText = create("TextLabel", {
+        Parent = bottomBar,
+        RichText = true,
+        TextColor3 = RGB(255, 255, 255),
+        Text = title,
+        TextStrokeTransparency = 0,
+        Size = UFS(1, 1),
+        BackgroundTransparency = 1,
+        TextXAlignment = TXA.Left,
+        BorderSizePixel = 0,
+        FontFace = STYLE.FontTitle,
+        TextSize = 14,
+        BackgroundColor3 = STYLE.BgColor,
+    })
+    create("UIGradient", {
+        Parent = leftText,
+        Color = makeGradient({
+            {0, RGB(249, 248, 255)},
+            {0.128, RGB(134, 139, 159)},
+            {0.233, RGB(101, 108, 131)},
+            {0.597, RGB(175, 187, 239)},
+            {1, RGB(175, 187, 239)},
+        }),
+    })
 
-	-- Right bottom text
-	local rightText = create("TextLabel", {
-		Parent = bottomBar,
-		RichText = true,
-		TextColor3 = RGB(255,255,255),
-		Text = "@7notice",
-		TextStrokeTransparency = 0,
-		Size = UFS(1,1),
-		BackgroundTransparency = 1,
-		TextXAlignment = TXA.Right,
-		BorderSizePixel = 0,
-		FontFace = STYLE.FontTitle,
-		TextSize = 14,
-		BackgroundColor3 = STYLE.BgColor,
-	})
-	create("UIGradient", {
-		Parent = bottomBar,
-		Rotation = 90,
-		Color = makeGradient({
-			{0, RGB(255,255,255)},
-			{1, RGB(200,200,200)},
-		}),
-	})
+    -- Right bottom text
+    local rightText = create("TextLabel", {
+        Parent = bottomBar,
+        RichText = true,
+        TextColor3 = RGB(255, 255, 255),
+        Text = "@7notice",
+        TextStrokeTransparency = 0,
+        Size = UFS(1, 1),
+        BackgroundTransparency = 1,
+        TextXAlignment = TXA.Right,
+        BorderSizePixel = 0,
+        FontFace = STYLE.FontTitle,
+        TextSize = 14,
+        BackgroundColor3 = STYLE.BgColor,
+    })
+    create("UIGradient", {
+        Parent = bottomBar,
+        Rotation = 90,
+        Color = makeGradient({
+            {0, RGB(255, 255, 255)},
+            {1, RGB(200, 200, 200)},
+        }),
+    })
 
-	-- Dropdown overlay (hidden initially)
-	local dropdownOverlay = create("Frame", {
-		Parent = window,
-		Name = "dropdown frame",
-		Size = UFO(205, 0),
-		Position = UFS(-0.481, 0.0017),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		AutomaticSize = AS.Y,
-		BackgroundColor3 = STYLE.BgDark,
-		Visible = false,
-	})
-	addPadding(dropdownOverlay, 5,5,0,0)
-	addStroke(dropdownOverlay, STYLE.BorderColor, 1, ASM.Border)
-	addStroke(dropdownOverlay, STYLE.BorderColor, 1, ASM.Border, 1)
-	local dropdownList = addListLayout(dropdownOverlay, FD.Vertical, 5, SO.LayoutOrder)
+    -- Dropdown overlay (hidden initially)
+    local dropdownOverlay = create("Frame", {
+        Parent = window,
+        Name = "dropdown frame",
+        Size = UFO(205, 0),
+        Position = UFS(-0.481, 0.0017),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        AutomaticSize = AS.Y,
+        BackgroundColor3 = STYLE.BgDark,
+        Visible = false,
+    })
+    addPadding(dropdownOverlay, 5, 5, 0, 0)
+    addStroke(dropdownOverlay, STYLE.BorderColor, 1, ASM.Border)
+    addStroke(dropdownOverlay, STYLE.BorderColor, 1, ASM.Border, 1)
+    local dropdownList = addListLayout(dropdownOverlay, FD.Vertical, 5, SO.LayoutOrder)
 
-	-- Gradient on main window
-	create("UIGradient", {
-		Parent = window,
-		Rotation = -90,
-		Color = makeGradient({
-			{0, RGB(143,144,144)},
-			{1, RGB(200,200,200)},
-		}),
-	})
+    -- Gradient on main window
+    create("UIGradient", {
+        Parent = window,
+        Rotation = -90,
+        Color = makeGradient({
+            {0, RGB(143, 144, 144)},
+            {1, RGB(200, 200, 200)},
+        }),
+    })
 
-	-- Window object
-	local self = setmetatable({}, UI)
-	self._screen = screen
-	self._window = window
-	self._title = title
-	self._tabContainer = tabContainer
-	self._tabButtons = tabButtons
-	self._contentFrame = contentFrame
-	self._bottomBar = bottomBar
-	self._dropdownOverlay = dropdownOverlay
-	self._tabs = {}
-	self._activeTab = nil
-	self._dropdownOpen = false
-	self._dropdownTarget = nil -- control that opened it
+    -- Window object
+    local self = setmetatable({}, UI)
+    self._screen = screen
+    self._window = window
+    self._title = title
+    self._tabContainer = tabContainer
+    self._tabButtons = tabButtons
+    self._contentFrame = contentFrame
+    self._bottomBar = bottomBar
+    self._dropdownOverlay = dropdownOverlay
+    self._tabs = {}
+    self._activeTab = nil
+    self._dropdownOpen = false
+    self._dropdownTarget = nil
 
-	-- Method to create a tab
-	function self:CreateTab(name)
-		-- Tab button
-		local button = create("TextButton", {
-			Parent = self._tabButtons,
-			FontFace = STYLE.FontBody,
-			TextColor3 = STYLE.TextGray,
-			Text = name,
-			TextStrokeTransparency = 0,
-			Name = "unselected_tab",
-			BackgroundTransparency = 1,
-			Size = UFS(0,1),
-			BorderSizePixel = 0,
-			AutomaticSize = AS.X,
-			TextSize = 14,
-			BackgroundColor3 = RGB(255,255,255),
-		})
-		addPadding(button, 0,0,8,8)
-		addStroke(button, STYLE.BorderColor, 1, ASM.Border, -2)
+    -- Method to create a tab
+    function self:CreateTab(name)
+        -- Tab button
+        local button = create("TextButton", {
+            Parent = self._tabButtons,
+            FontFace = STYLE.FontBody,
+            TextColor3 = STYLE.TextGray,
+            Text = name,
+            TextStrokeTransparency = 0,
+            Name = "unselected_tab",
+            BackgroundTransparency = 1,
+            Size = UFS(0, 1),
+            BorderSizePixel = 0,
+            AutomaticSize = AS.X,
+            TextSize = 14,
+            BackgroundColor3 = RGB(255, 255, 255),
+        })
+        addPadding(button, 0, 0, 8, 8)
+        addStroke(button, STYLE.BorderColor, 1, ASM.Border, -2)
 
-		-- Tab content (ScrollingFrame)
-		local tabContent = create("ScrollingFrame", {
-			Parent = self._contentFrame,
-			ScrollBarImageColor3 = RGB(0,0,0),
-			Active = true,
-			AutomaticCanvasSize = AS.Y,
-			ScrollBarThickness = 0,
-			BackgroundTransparency = 1,
-			Size = UFS(1,1),
-			BackgroundColor3 = RGB(255,255,255),
-			BorderColor3 = RGB(0,0,0),
-			BorderSizePixel = 0,
-			CanvasSize = UFS(0,0),
-			Visible = false, -- initially hidden
-		})
-		addPadding(tabContent, 1,1,1,1)
-		local tabLayout = addListLayout(tabContent, FD.Vertical, 8, SO.LayoutOrder)
+        -- Tab content (ScrollingFrame)
+        local tabContent = create("ScrollingFrame", {
+            Parent = self._contentFrame,
+            ScrollBarImageColor3 = RGB(0, 0, 0),
+            Active = true,
+            AutomaticCanvasSize = AS.Y,
+            ScrollBarThickness = 0,
+            BackgroundTransparency = 1,
+            Size = UFS(1, 1),
+            BackgroundColor3 = RGB(255, 255, 255),
+            BorderColor3 = RGB(0, 0, 0),
+            BorderSizePixel = 0,
+            CanvasSize = UFS(0, 0),
+            Visible = false,
+        })
+        addPadding(tabContent, 1, 1, 1, 1)
+        local tabLayout = addListLayout(tabContent, FD.Vertical, 8, SO.LayoutOrder)
 
-		-- Store
-		local tab = {
-			Name = name,
-			Button = button,
-			Content = tabContent,
-			Sections = {},
-			Layout = tabLayout,
-		}
-		table.insert(self._tabs, tab)
+        -- Store
+        local tab = {
+            Name = name,
+            Button = button,
+            Content = tabContent,
+            Sections = {},
+            Layout = tabLayout,
+        }
+        table.insert(self._tabs, tab)
 
-		-- Click to switch
-		button.MouseButton1Click:Connect(function()
-			self:SelectTab(tab)
-		end)
+        -- Click to switch
+        button.MouseButton1Click:Connect(function()
+            self:SelectTab(tab)
+        end)
 
-		-- If first tab, select it
-		if #self._tabs == 1 then
-			self:SelectTab(tab)
-		end
+        -- If first tab, select it
+        if #self._tabs == 1 then
+            self:SelectTab(tab)
+        end
 
-		-- Return an interface to add sections
-		local tabObj = {}
-		function tabObj:CreateSection(title)
-			local section = self:CreateSection(title, tabContent)
-			return section
-		end
-		return tabObj
-	end
+        -- Return an interface to add sections
+        local tabObj = {}
+        function tabObj:CreateSection(title)
+            local section = self:CreateSection(title, tabContent)
+            return section
+        end
+        return tabObj
+    end
 
-	-- Internal: select tab
-	function self:SelectTab(tab)
-		if self._activeTab == tab then return end
-		-- Update button styles
-		for _, t in ipairs(self._tabs) do
-			local isActive = (t == tab)
-			t.Button.TextColor3 = isActive and STYLE.AccentDim or STYLE.TextGray
-			t.Button.Name = isActive and "selected_tab" or "unselected_tab"
-			-- Optionally add stroke highlight? We'll just change color.
-			t.Content.Visible = isActive
-		end
-		self._activeTab = tab
-	end
+    -- Internal: select tab
+    function self:SelectTab(tab)
+        if self._activeTab == tab then return end
+        for _, t in ipairs(self._tabs) do
+            local isActive = (t == tab)
+            t.Button.TextColor3 = isActive and STYLE.AccentDim or STYLE.TextGray
+            t.Button.Name = isActive and "selected_tab" or "unselected_tab"
+            t.Content.Visible = isActive
+        end
+        self._activeTab = tab
+    end
 
-	-- Internal: create a section inside a tab content
-	function self:CreateSection(title, parent)
-		local section = create("Frame", {
-			Parent = parent,
-			Name = "section",
-			Size = UFS(1,0),
-			BorderColor3 = RGB(0,0,0),
-			BorderSizePixel = 0,
-			AutomaticSize = AS.Y,
-			BackgroundColor3 = STYLE.BgColor,
-		})
-		addPadding(section, 12,12,12,12)
-		addStroke(section, STYLE.BorderColor, 1, ASM.Border, nil, BSP.Inner)
-		addStroke(section, STYLE.BorderColor, 2, ASM.Border, 1, BSP.Inner)
-		local sectionLayout = addListLayout(section, FD.Vertical, 8, SO.LayoutOrder, UFA.Fill, nil, Enum.VerticalAlignment.Top)
-		create("UIGradient", {
-			Parent = section,
-			Rotation = 90,
-			Color = makeGradient({
-				{0, RGB(255,255,255)},
-				{1, RGB(200,200,200)},
-			}),
-		})
+    -- Internal: create a section inside a tab content
+    function self:CreateSection(title, parent)
+        local section = create("Frame", {
+            Parent = parent,
+            Name = "section",
+            Size = UFS(1, 0),
+            BorderColor3 = RGB(0, 0, 0),
+            BorderSizePixel = 0,
+            AutomaticSize = AS.Y,
+            BackgroundColor3 = STYLE.BgColor,
+        })
+        addPadding(section, 12, 12, 12, 12)
+        addStroke(section, STYLE.BorderColor, 1, ASM.Border, nil, BSP.Inner)
+        addStroke(section, STYLE.BorderColor, 2, ASM.Border, 1, BSP.Inner)
+        local sectionLayout = addListLayout(section, FD.Vertical, 8, SO.LayoutOrder, UFA.Fill, nil, Enum.VerticalAlignment.Top)
+        create("UIGradient", {
+            Parent = section,
+            Rotation = 90,
+            Color = makeGradient({
+                {0, RGB(255, 255, 255)},
+                {1, RGB(200, 200, 200)},
+            }),
+        })
 
-		-- Return a section object with methods to add controls
-		local secObj = {}
-		function secObj:CreateSlider(cfg)
-			return self:CreateSlider(cfg, section)
-		end
-		function secObj:CreateToggle(cfg)
-			return self:CreateToggle(cfg, section)
-		end
-		function secObj:CreateDropdown(cfg)
-			return self:CreateDropdown(cfg, section)
-		end
-		return secObj
-	end
+        -- Return a section object with methods to add controls
+        local secObj = {}
+        function secObj:CreateSlider(cfg)
+            return self:CreateSlider(cfg, section)
+        end
+        function secObj:CreateToggle(cfg)
+            return self:CreateToggle(cfg, section)
+        end
+        function secObj:CreateDropdown(cfg)
+            return self:CreateDropdown(cfg, section)
+        end
+        return secObj
+    end
 
-	-- Internal: create slider control
-	function self:CreateSlider(cfg, parent)
-		cfg = cfg or {}
-		local title = cfg.Title or "Slider"
-		local min = cfg.Min or 0
-		local max = cfg.Max or 100
-		local default = cfg.Default or 50
-		local callback = cfg.Callback or function() end
+    -- Internal: create slider control
+    function self:CreateSlider(cfg, parent)
+        cfg = cfg or {}
+        local title = cfg.Title or "Slider"
+        local min = cfg.Min or 0
+        local max = cfg.Max or 100
+        local default = cfg.Default or 50
+        local callback = cfg.Callback or function() end
 
-		local container = create("Frame", {
-			Parent = parent,
-			Name = "silder",
-			BackgroundTransparency = 1,
-			Size = UD2(1,0,0,16),
-			BorderColor3 = RGB(0,0,0),
-			BorderSizePixel = 0,
-			AutomaticSize = AS.Y,
-			BackgroundColor3 = RGB(255,255,255),
-		})
-		addPadding(container, 0,0,0,0)
-		local cLayout = addListLayout(container, FD.Vertical, 4, SO.LayoutOrder)
+        local container = create("Frame", {
+            Parent = parent,
+            Name = "silder",
+            BackgroundTransparency = 1,
+            Size = UD2(1, 0, 0, 16),
+            BorderColor3 = RGB(0, 0, 0),
+            BorderSizePixel = 0,
+            AutomaticSize = AS.Y,
+            BackgroundColor3 = RGB(255, 255, 255),
+        })
+        addPadding(container, 0, 0, 0, 0)
+        local cLayout = addListLayout(container, FD.Vertical, 4, SO.LayoutOrder)
 
-		-- Title
-		local titleLabel = create("TextLabel", {
-			Parent = container,
-			FontFace = STYLE.FontBold,
-			TextColor3 = RGB(255,255,255),
-			Text = title,
-			TextStrokeTransparency = 0,
-			Name = "Title",
-			Size = UFO(205, 15),
-			BackgroundTransparency = 1,
-			TextXAlignment = TXA.Left,
-			BorderSizePixel = 0,
-			TextYAlignment = TYA.Top,
-			TextSize = 14,
-			BackgroundColor3 = RGB(255,255,255),
-		})
+        -- Title
+        local titleLabel = create("TextLabel", {
+            Parent = container,
+            FontFace = STYLE.FontBold,
+            TextColor3 = RGB(255, 255, 255),
+            Text = title,
+            TextStrokeTransparency = 0,
+            Name = "Title",
+            Size = UFO(205, 15),
+            BackgroundTransparency = 1,
+            TextXAlignment = TXA.Left,
+            BorderSizePixel = 0,
+            TextYAlignment = TYA.Top,
+            TextSize = 14,
+            BackgroundColor3 = RGB(255, 255, 255),
+        })
 
-		-- Slider base
-		local sliderBase = create("Frame", {
-			Parent = container,
-			Name = "silder base",
-			LayoutOrder = 999,
-			BorderColor3 = RGB(0,0,0),
-			BackgroundTransparency = 1,
-			Size = UD2(1,0,0,13),
-			BorderSizePixel = 0,
-			BackgroundColor3 = RGB(255,255,255),
-		})
-		addStroke(sliderBase, STYLE.BorderColor, 1, ASM.Border)
-		addStroke(sliderBase, STYLE.BorderColor, 1, ASM.Border, 1)
+        -- Slider base
+        local sliderBase = create("Frame", {
+            Parent = container,
+            Name = "silder base",
+            LayoutOrder = 999,
+            BorderColor3 = RGB(0, 0, 0),
+            BackgroundTransparency = 1,
+            Size = UD2(1, 0, 0, 13),
+            BorderSizePixel = 0,
+            BackgroundColor3 = RGB(255, 255, 255),
+        })
+        addStroke(sliderBase, STYLE.BorderColor, 1, ASM.Border)
+        addStroke(sliderBase, STYLE.BorderColor, 1, ASM.Border, 1)
 
-		-- Fill bar
-		local fill = create("Frame", {
-			Parent = sliderBase,
-			BorderColor3 = RGB(0,0,0),
-			Size = UFS(0.5,1), -- will be updated
-			BorderSizePixel = 0,
-			BackgroundColor3 = STYLE.AccentDim,
-		})
-		addShadow(fill, 4, STYLE.Accent, 0.5)
+        -- Fill bar
+        local fill = create("Frame", {
+            Parent = sliderBase,
+            BorderColor3 = RGB(0, 0, 0),
+            Size = UFS(0.5, 1),
+            BorderSizePixel = 0,
+            BackgroundColor3 = STYLE.AccentDim,
+        })
+        addShadow(fill, 4, STYLE.Accent, 0.5)
 
-		-- Value label
-		local valueLabel = create("TextLabel", {
-			Parent = sliderBase,
-			FontFace = STYLE.FontBold,
-			TextColor3 = RGB(255,255,255),
-			Text = tostring(default).."px",
-			TextStrokeTransparency = 0,
-			BackgroundTransparency = 1,
-			Size = UFO(200, 13),
-			BorderSizePixel = 0,
-			TextSize = 14,
-			BackgroundColor3 = RGB(255,255,255),
-		})
+        -- Value label
+        local valueLabel = create("TextLabel", {
+            Parent = sliderBase,
+            FontFace = STYLE.FontBold,
+            TextColor3 = RGB(255, 255, 255),
+            Text = tostring(default) .. "px",
+            TextStrokeTransparency = 0,
+            BackgroundTransparency = 1,
+            Size = UFO(200, 13),
+            BorderSizePixel = 0,
+            TextSize = 14,
+            BackgroundColor3 = RGB(255, 255, 255),
+        })
 
-		-- State
-		local sliderData = {
-			Min = min,
-			Max = max,
-			Value = default,
-			Fill = fill,
-			Label = valueLabel,
-			Callback = callback,
-		}
+        -- State
+        local sliderData = {
+            Min = min,
+            Max = max,
+            Value = default,
+            Fill = fill,
+            Label = valueLabel,
+            Callback = callback,
+        }
 
-		-- Update UI
-		local function updateValue(val)
-			val = MC(val, min, max)
-			sliderData.Value = val
-			local percent = (val - min) / (max - min)
-			fill.Size = UD2(percent, 0, 1, 0)
-			valueLabel.Text = tostring(MR(val)).."px"
-			callback(val)
-		end
-		updateValue(default)
+        -- Update UI
+        local function updateValue(val)
+            val = MC(val, min, max)
+            sliderData.Value = val
+            local percent = (val - min) / (max - min)
+            fill.Size = UD2(percent, 0, 1, 0)
+            valueLabel.Text = tostring(MR(val)) .. "px"
+            callback(val)
+        end
+        updateValue(default)
 
-		-- Mouse interaction
-		local dragging = false
-		local function onInput(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 then
-				dragging = true
-			end
-		end
-		local function onInputEnd(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 then
-				dragging = false
-			end
-		end
-		local function onMouseMove(input)
-			if not dragging then return end
-			local pos = input.Position.X
-			local rel = pos - sliderBase.AbsolutePosition.X
-			local width = sliderBase.AbsoluteSize.X
-			local p = MC(rel / width, 0, 1)
-			local val = min + (max - min) * p
-			updateValue(val)
-		end
+        -- Mouse interaction
+        local dragging = false
+        local function onInput(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = true
+            end
+        end
+        local function onInputEnd(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = false
+            end
+        end
+        local function onMouseMove(input)
+            if not dragging then return end
+            local pos = input.Position.X
+            local rel = pos - sliderBase.AbsolutePosition.X
+            local width = sliderBase.AbsoluteSize.X
+            local p = MC(rel / width, 0, 1)
+            local val = min + (max - min) * p
+            updateValue(val)
+        end
 
-		sliderBase.InputBegan:Connect(onInput)
-		sliderBase.InputEnded:Connect(onInputEnd)
-		sliderBase.MouseMoved:Connect(function(x, y)
-			if dragging then
-				local pos = x
-				local rel = pos - sliderBase.AbsolutePosition.X
-				local width = sliderBase.AbsoluteSize.X
-				local p = MC(rel / width, 0, 1)
-				local val = min + (max - min) * p
-				updateValue(val)
-			end
-		end)
+        sliderBase.InputBegan:Connect(onInput)
+        sliderBase.InputEnded:Connect(onInputEnd)
+        sliderBase.MouseMoved:Connect(function(x, y)
+            if dragging then
+                local pos = x
+                local rel = pos - sliderBase.AbsolutePosition.X
+                local width = sliderBase.AbsoluteSize.X
+                local p = MC(rel / width, 0, 1)
+                local val = min + (max - min) * p
+                updateValue(val)
+            end
+        end)
 
-		-- Return control object
-		local control = {}
-		function control:SetValue(val)
-			updateValue(val)
-		end
-		function control:GetValue()
-			return sliderData.Value
-		end
-		return control
-	end
+        -- Return control object
+        local control = {}
+        function control:SetValue(val)
+            updateValue(val)
+        end
+        function control:GetValue()
+            return sliderData.Value
+        end
+        return control
+    end
 
-	-- Internal: create toggle control
-	function self:CreateToggle(cfg, parent)
-		cfg = cfg or {}
-		local title = cfg.Title or "Toggle"
-		local default = cfg.Default or false
-		local callback = cfg.Callback or function() end
+    -- Internal: create toggle control
+    function self:CreateToggle(cfg, parent)
+        cfg = cfg or {}
+        local title = cfg.Title or "Toggle"
+        local default = cfg.Default or false
+        local callback = cfg.Callback or function() end
 
-		local container = create("Frame", {
-			Parent = parent,
-			Name = "Unseleted toggle",
-			BackgroundTransparency = 1,
-			Size = UD2(1,0,0,16),
-			BorderColor3 = RGB(0,0,0),
-			BorderSizePixel = 0,
-			BackgroundColor3 = RGB(255,255,255),
-		})
-		addListLayout(container, FD.Horizontal, 7, SO.LayoutOrder, nil, nil, Enum.VerticalAlignment.Center)
+        local container = create("Frame", {
+            Parent = parent,
+            Name = "Unseleted toggle",
+            BackgroundTransparency = 1,
+            Size = UD2(1, 0, 0, 16),
+            BorderColor3 = RGB(0, 0, 0),
+            BorderSizePixel = 0,
+            BackgroundColor3 = RGB(255, 255, 255),
+        })
+        addListLayout(container, FD.Horizontal, 7, SO.LayoutOrder, nil, nil, Enum.VerticalAlignment.Center)
 
-		-- Toggle button
-		local toggleBtn = create("TextButton", {
-			Parent = container,
-			FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal),
-			TextColor3 = RGB(0,0,0),
-			BorderColor3 = RGB(65,65,65),
-			Text = "",
-			Name = "togglebutton",
-			Position = UFS(0,0.5),
-			Size = UFO(10,10),
-			BorderSizePixel = 0,
-			TextSize = 100,
-			BackgroundColor3 = STYLE.BgColor,
-		})
-		addStroke(toggleBtn, STYLE.BorderColor, 1, ASM.Border)
-		addStroke(toggleBtn, STYLE.BorderColor, 1, ASM.Border, 1)
+        -- Toggle button
+        local toggleBtn = create("TextButton", {
+            Parent = container,
+            FontFace = FN("rbxasset://fonts/families/SourceSansPro.json", FW.Regular, FS.Normal),
+            TextColor3 = RGB(0, 0, 0),
+            BorderColor3 = RGB(65, 65, 65),
+            Text = "",
+            Name = "togglebutton",
+            Position = UFS(0, 0.5),
+            Size = UFO(10, 10),
+            BorderSizePixel = 0,
+            TextSize = 100,
+            BackgroundColor3 = STYLE.BgColor,
+        })
+        addStroke(toggleBtn, STYLE.BorderColor, 1, ASM.Border)
+        addStroke(toggleBtn, STYLE.BorderColor, 1, ASM.Border, 1)
 
-		-- Label
-		local label = create("TextLabel", {
-			Parent = container,
-			FontFace = STYLE.FontBody,
-			TextColor3 = RGB(255,255,255),
-			Text = title,
-			TextStrokeTransparency = 0,
-			Size = UFS(0.884,1),
-			BackgroundTransparency = 1,
-			TextXAlignment = TXA.Left,
-			BorderSizePixel = 0,
-			TextYAlignment = TYA.Top,
-			TextSize = 14,
-			BackgroundColor3 = RGB(255,255,255),
-		})
+        -- Label
+        local label = create("TextLabel", {
+            Parent = container,
+            FontFace = STYLE.FontBody,
+            TextColor3 = RGB(255, 255, 255),
+            Text = title,
+            TextStrokeTransparency = 0,
+            Size = UFS(0.884, 1),
+            BackgroundTransparency = 1,
+            TextXAlignment = TXA.Left,
+            BorderSizePixel = 0,
+            TextYAlignment = TYA.Top,
+            TextSize = 14,
+            BackgroundColor3 = RGB(255, 255, 255),
+        })
 
-		-- State
-		local state = default
-		local function updateToggle(val)
-			state = val
-			if val then
-				toggleBtn.BackgroundColor3 = STYLE.AccentDim
-				-- add shadow
-				local shadow = addShadow(toggleBtn, 10, STYLE.Accent, 0.5, UFO(0,2))
-				-- store shadow reference to remove later? we'll just recreate
-				-- simplify: we'll keep it simple
-				-- we'll add shadow when on, remove when off
-				local existing = toggleBtn:FindFirstChild("UIShadow")
-				if existing then existing:Destroy() end
-				if val then
-					addShadow(toggleBtn, 10, STYLE.Accent, 0.5, UFO(0,2))
-				end
-			else
-				toggleBtn.BackgroundColor3 = STYLE.BgColor
-				local existing = toggleBtn:FindFirstChild("UIShadow")
-				if existing then existing:Destroy() end
-			end
-			callback(val)
-		end
+        -- State
+        local state = default
+        local function updateToggle(val)
+            state = val
+            if val then
+                toggleBtn.BackgroundColor3 = STYLE.AccentDim
+                local existing = toggleBtn:FindFirstChild("UIShadow")
+                if existing then existing:Destroy() end
+                addShadow(toggleBtn, 10, STYLE.Accent, 0.5, UFO(0, 2))
+            else
+                toggleBtn.BackgroundColor3 = STYLE.BgColor
+                local existing = toggleBtn:FindFirstChild("UIShadow")
+                if existing then existing:Destroy() end
+            end
+            callback(val)
+        end
 
-		updateToggle(default)
+        updateToggle(default)
 
-		toggleBtn.MouseButton1Click:Connect(function()
-			updateToggle(not state)
-		end)
+        toggleBtn.MouseButton1Click:Connect(function()
+            updateToggle(not state)
+        end)
 
-		local control = {}
-		function control:SetValue(val)
-			updateToggle(val)
-		end
-		function control:GetValue()
-			return state
-		end
-		return control
-	end
+        local control = {}
+        function control:SetValue(val)
+            updateToggle(val)
+        end
+        function control:GetValue()
+            return state
+        end
+        return control
+    end
 
-	-- Internal: create dropdown control
-	function self:CreateDropdown(cfg, parent)
-		cfg = cfg or {}
-		local title = cfg.Title or "Dropdown"
-		local options = cfg.Options or {"Option 1", "Option 2"}
-		local default = cfg.Default or options[1]
-		local callback = cfg.Callback or function() end
+    -- Internal: create dropdown control
+    function self:CreateDropdown(cfg, parent)
+        cfg = cfg or {}
+        local title = cfg.Title or "Dropdown"
+        local options = cfg.Options or {"Option 1", "Option 2"}
+        local default = cfg.Default or options[1]
+        local callback = cfg.Callback or function() end
 
-		local container = create("Frame", {
-			Parent = parent,
-			Name = "dropdown",
-			BackgroundTransparency = 1,
-			Size = UD2(0.4646,0,0,16),
-			BorderColor3 = RGB(0,0,0),
-			BorderSizePixel = 0,
-			BackgroundColor3 = RGB(255,255,255),
-		})
-		addPadding(container, 0,0,5,0)
-		addStroke(container, STYLE.BorderColor, 1, ASM.Border)
-		addStroke(container, STYLE.BorderColor, 1, ASM.Border, 1)
+        local container = create("Frame", {
+            Parent = parent,
+            Name = "dropdown",
+            BackgroundTransparency = 1,
+            Size = UD2(0.4646, 0, 0, 16),
+            BorderColor3 = RGB(0, 0, 0),
+            BorderSizePixel = 0,
+            BackgroundColor3 = RGB(255, 255, 255),
+        })
+        addPadding(container, 0, 0, 5, 0)
+        addStroke(container, STYLE.BorderColor, 1, ASM.Border)
+        addStroke(container, STYLE.BorderColor, 1, ASM.Border, 1)
 
-		-- Arrow image
-		local arrow = create("ImageLabel", {
-			Parent = container,
-			ImageColor3 = RGB(254,253,255),
-			BorderColor3 = RGB(0,0,0),
-			Image = "rbxassetid://15554886440",
-			BackgroundTransparency = 1,
-			Position = UD2(0.895, 0, -0.455, 2),
-			Size = UFO(25,25),
-			BorderSizePixel = 0,
-			BackgroundColor3 = RGB(255,255,255),
-		})
+        -- Arrow image
+        local arrow = create("ImageLabel", {
+            Parent = container,
+            ImageColor3 = RGB(254, 253, 255),
+            BorderColor3 = RGB(0, 0, 0),
+            Image = "rbxassetid://15554886440",
+            BackgroundTransparency = 1,
+            Position = UD2(0.895, 0, -0.455, 2),
+            Size = UFO(25, 25),
+            BorderSizePixel = 0,
+            BackgroundColor3 = RGB(255, 255, 255),
+        })
 
-		-- Text button (clickable)
-		local btn = create("TextButton", {
-			Parent = container,
-			FontFace = STYLE.FontBold,
-			TextColor3 = RGB(255,255,255),
-			Text = default,
-			TextStrokeTransparency = 0,
-			BackgroundTransparency = 1,
-			TextXAlignment = TXA.Left,
-			Size = UFO(195,15),
-			BorderSizePixel = 0,
-			TextSize = 13,
-			BackgroundColor3 = RGB(255,255,255),
-		})
+        -- Text button (clickable)
+        local btn = create("TextButton", {
+            Parent = container,
+            FontFace = STYLE.FontBold,
+            TextColor3 = RGB(255, 255, 255),
+            Text = default,
+            TextStrokeTransparency = 0,
+            BackgroundTransparency = 1,
+            TextXAlignment = TXA.Left,
+            Size = UFO(195, 15),
+            BorderSizePixel = 0,
+            TextSize = 13,
+            BackgroundColor3 = RGB(255, 255, 255),
+        })
 
-		-- State
-		local selected = default
-		local function updateDropdown(val)
-			selected = val
-			btn.Text = val
-			callback(val)
-			-- Close overlay if open
-			if self._dropdownOpen then
-				self._dropdownOverlay.Visible = false
-				self._dropdownOpen = false
-				self._dropdownTarget = nil
-			end
-		end
+        -- State
+        local selected = default
+        local function updateDropdown(val)
+            selected = val
+            btn.Text = val
+            callback(val)
+            if self._dropdownOpen then
+                self._dropdownOverlay.Visible = false
+                self._dropdownOpen = false
+                self._dropdownTarget = nil
+            end
+        end
 
-		-- Dropdown overlay population
-		local function openDropdown()
-			if self._dropdownOpen then
-				self._dropdownOverlay.Visible = false
-				self._dropdownOpen = false
-				return
-			end
-			-- Clear old options
-			for _, child in ipairs(self._dropdownOverlay:GetChildren()) do
-				if child:IsA("TextButton") then child:Destroy() end
-			end
-			-- Add options
-			for _, opt in ipairs(options) do
-				local isSelected = (opt == selected)
-				local optBtn = create("TextButton", {
-					Parent = self._dropdownOverlay,
-					FontFace = STYLE.FontBold,
-					TextColor3 = isSelected and STYLE.Accent or RGB(112,113,114),
-					Text = opt,
-					BackgroundTransparency = 1,
-					Name = isSelected and "selection" or "unselected",
-					Size = UD2(1,0,0,16),
-					BorderSizePixel = 0,
-					TextSize = 13,
-					BackgroundColor3 = STYLE.BgColor,
-				})
-				optBtn.MouseButton1Click:Connect(function()
-					updateDropdown(opt)
-				end)
-			end
-			-- Position overlay relative to container
-			local absPos = container.AbsolutePosition
-			local absSize = container.AbsoluteSize
-			self._dropdownOverlay.Position = UD2(0, absPos.X - self._window.AbsolutePosition.X, 0, absPos.Y + absSize.Y - self._window.AbsolutePosition.Y)
-			self._dropdownOverlay.Visible = true
-			self._dropdownOpen = true
-			self._dropdownTarget = container
-		end
+        -- Dropdown overlay population
+        local function openDropdown()
+            if self._dropdownOpen then
+                self._dropdownOverlay.Visible = false
+                self._dropdownOpen = false
+                return
+            end
+            -- Clear old options
+            for _, child in ipairs(self._dropdownOverlay:GetChildren()) do
+                if child:IsA("TextButton") then child:Destroy() end
+            end
+            -- Add options
+            for _, opt in ipairs(options) do
+                local isSelected = (opt == selected)
+                local optBtn = create("TextButton", {
+                    Parent = self._dropdownOverlay,
+                    FontFace = STYLE.FontBold,
+                    TextColor3 = isSelected and STYLE.Accent or RGB(112, 113, 114),
+                    Text = opt,
+                    BackgroundTransparency = 1,
+                    Name = isSelected and "selection" or "unselected",
+                    Size = UD2(1, 0, 0, 16),
+                    BorderSizePixel = 0,
+                    TextSize = 13,
+                    BackgroundColor3 = STYLE.BgColor,
+                })
+                optBtn.MouseButton1Click:Connect(function()
+                    updateDropdown(opt)
+                end)
+            end
+            -- Position overlay relative to container
+            local absPos = container.AbsolutePosition
+            local absSize = container.AbsoluteSize
+            self._dropdownOverlay.Position = UD2(0, absPos.X - self._window.AbsolutePosition.X, 0, absPos.Y + absSize.Y - self._window.AbsolutePosition.Y)
+            self._dropdownOverlay.Visible = true
+            self._dropdownOpen = true
+            self._dropdownTarget = container
+        end
 
-		btn.MouseButton1Click:Connect(openDropdown)
+        btn.MouseButton1Click:Connect(openDropdown)
 
-		local control = {}
-		function control:SetValue(val)
-			if TF(options, val) then
-				updateDropdown(val)
-			end
-		end
-		function control:GetValue()
-			return selected
-		end
-		return control
-	end
+        local control = {}
+        function control:SetValue(val)
+            if TF(options, val) then
+                updateDropdown(val)
+            end
+        end
+        function control:GetValue()
+            return selected
+        end
+        return control
+    end
 
-	-- Close dropdown on click outside (simplified: global click on window)
-	self._window.MouseButton1Down:Connect(function()
-		if self._dropdownOpen then
-			self._dropdownOverlay.Visible = false
-			self._dropdownOpen = false
-		end
-	end)
+    -- Close dropdown on click outside
+    self._window.MouseButton1Down:Connect(function()
+        if self._dropdownOpen then
+            self._dropdownOverlay.Visible = false
+            self._dropdownOpen = false
+        end
+    end)
 
-	return self
+    return self
 end
 
 -- ------------------------------------------------------------------------
--- Additional windows (Configs, EspPreview, TargetHUD, WaterMark)
--- can be created as separate functions for completeness.
+-- Additional windows
 -- ------------------------------------------------------------------------
 function UI:CreateConfigWindow(config)
-	-- This replicates the "configs" frame from the original.
-	config = config or {}
-	local parent = config.Parent or game.StarterGui
-	local pos = config.Position or UFS(0.665, 0.134)
-	local size = config.Size or UFO(250,245)
+    config = config or {}
+    local parent = config.Parent or game.StarterGui
+    local pos = config.Position or UFS(0.665, 0.134)
+    local size = config.Size or UFO(250, 245)
 
-	local frame = create("Frame", {
-		Parent = parent,
-		Name = "configs",
-		Position = pos,
-		Size = size,
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = STYLE.BgDark,
-	})
-	addPadding(frame, 0,0,5,0)
-	addStroke(frame, STYLE.BorderLight, 1, ASM.Border)
-	addStroke(frame, STYLE.BorderLight, 1, ASM.Border, 1)
+    local frame = create("Frame", {
+        Parent = parent,
+        Name = "configs",
+        Position = pos,
+        Size = size,
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = STYLE.BgDark,
+    })
+    addPadding(frame, 0, 0, 5, 0)
+    addStroke(frame, STYLE.BorderLight, 1, ASM.Border)
+    addStroke(frame, STYLE.BorderLight, 1, ASM.Border, 1)
 
-	-- Title
-	local titleLabel = create("TextLabel", {
-		Parent = frame,
-		FontFace = STYLE.FontBold,
-		TextColor3 = RGB(255,255,255),
-		Text = "Config",
-		TextStrokeTransparency = 0,
-		BackgroundTransparency = 1,
-		TextXAlignment = TXA.Left,
-		Size = UFO(238,20),
-		BorderSizePixel = 0,
-		TextSize = 14,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	create("UIGradient", {
-		Parent = titleLabel,
-		Color = makeGradient({
-			{0, RGB(255,255,255)},
-			{0.25, STYLE.Accent},
-			{0.5, RGB(255,255,255)},
-			{0.75, STYLE.Accent},
-			{1, RGB(255,255,255)},
-		}),
-	})
+    -- Title
+    local titleLabel = create("TextLabel", {
+        Parent = frame,
+        FontFace = STYLE.FontBold,
+        TextColor3 = RGB(255, 255, 255),
+        Text = "Config",
+        TextStrokeTransparency = 0,
+        BackgroundTransparency = 1,
+        TextXAlignment = TXA.Left,
+        Size = UFO(238, 20),
+        BorderSizePixel = 0,
+        TextSize = 14,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    create("UIGradient", {
+        Parent = titleLabel,
+        Color = makeGradient({
+            {0, RGB(255, 255, 255)},
+            {0.25, STYLE.Accent},
+            {0.5, RGB(255, 255, 255)},
+            {0.75, STYLE.Accent},
+            {1, RGB(255, 255, 255)},
+        }),
+    })
 
-	-- Highlight
-	makeHighlight(frame, {
-		{0, RGB(16,16,16)},
-		{0.25, STYLE.Accent},
-		{0.5, RGB(16,16,16)},
-		{0.75, STYLE.Accent},
-		{1, RGB(16,16,16)},
-	}, UFO(251,1))
+    -- Highlight
+    makeHighlight(frame, {
+        {0, RGB(16, 16, 16)},
+        {0.25, STYLE.Accent},
+        {0.5, RGB(16, 16, 16)},
+        {0.75, STYLE.Accent},
+        {1, RGB(16, 16, 16)},
+    }, UFO(251, 1))
 
-	-- Config list frame
-	local listFrame = create("Frame", {
-		Parent = frame,
-		Name = "configs frame",
-		Position = UFS(0, 0.085),
-		Size = UFO(239,155),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = STYLE.BgDark,
-	})
-	addStroke(listFrame, STYLE.BorderColor, 1, ASM.Border)
-	addStroke(listFrame, STYLE.BorderColor, 1, ASM.Border, 1)
-	create("UIGradient", {
-		Parent = listFrame,
-		Rotation = -90,
-		Color = makeGradient({
-			{0, RGB(255,255,255)},
-			{1, RGB(200,200,200)},
-		}),
-	})
-	local scroll = create("ScrollingFrame", {
-		Parent = listFrame,
-		ScrollBarImageColor3 = RGB(0,0,0),
-		Active = true,
-		AutomaticCanvasSize = AS.Y,
-		ScrollBarThickness = 0,
-		BackgroundTransparency = 1,
-		Size = UFS(1,1),
-		BackgroundColor3 = RGB(255,255,255),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		CanvasSize = UFS(0,0),
-	})
-	addPadding(scroll, 5,0,0,0)
-	addListLayout(scroll, FD.Vertical, 5, SO.LayoutOrder, UFA.Fill)
+    -- Config list frame
+    local listFrame = create("Frame", {
+        Parent = frame,
+        Name = "configs frame",
+        Position = UFS(0, 0.085),
+        Size = UFO(239, 155),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = STYLE.BgDark,
+    })
+    addStroke(listFrame, STYLE.BorderColor, 1, ASM.Border)
+    addStroke(listFrame, STYLE.BorderColor, 1, ASM.Border, 1)
+    create("UIGradient", {
+        Parent = listFrame,
+        Rotation = -90,
+        Color = makeGradient({
+            {0, RGB(255, 255, 255)},
+            {1, RGB(200, 200, 200)},
+        }),
+    })
+    local scroll = create("ScrollingFrame", {
+        Parent = listFrame,
+        ScrollBarImageColor3 = RGB(0, 0, 0),
+        Active = true,
+        AutomaticCanvasSize = AS.Y,
+        ScrollBarThickness = 0,
+        BackgroundTransparency = 1,
+        Size = UFS(1, 1),
+        BackgroundColor3 = RGB(255, 255, 255),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        CanvasSize = UFS(0, 0),
+    })
+    addPadding(scroll, 5, 0, 0, 0)
+    addListLayout(scroll, FD.Vertical, 5, SO.LayoutOrder, UFA.Fill)
 
-	-- Example placeholder items (you'd fill with real config names)
-	-- We'll just add a couple for demonstration.
-	-- (In a real implementation, you'd have methods to add/remove items.)
+    -- Buttons (Save, Delete, Load)
+    local btnRow1 = create("Frame", {
+        Parent = frame,
+        Name = "save button",
+        BackgroundTransparency = 1,
+        Position = UFS(0, 0.7457),
+        Size = UFO(115, 25),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = STYLE.BgDark,
+    })
+    addStroke(btnRow1, RGB(65, 65, 65), 1, ASM.Border)
+    addStroke(btnRow1, RGB(65, 65, 65), 1, ASM.Border, 1)
+    addListLayout(btnRow1, FD.Vertical, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
+    local saveBtn = create("TextButton", {
+        Parent = btnRow1,
+        FontFace = STYLE.FontBold,
+        TextColor3 = STYLE.Accent,
+        Text = "Save Config",
+        TextStrokeTransparency = 0,
+        Name = "selected config",
+        BackgroundTransparency = 1,
+        Size = UFO(195, 15),
+        BorderSizePixel = 0,
+        TextSize = 14,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
 
-	-- Buttons (Save, Delete, Load)
-	local btnRow1 = create("Frame", {
-		Parent = frame,
-		Name = "save button",
-		BackgroundTransparency = 1,
-		Position = UFS(0, 0.7457),
-		Size = UFO(115,25),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = STYLE.BgDark,
-	})
-	addStroke(btnRow1, RGB(65,65,65), 1, ASM.Border)
-	addStroke(btnRow1, RGB(65,65,65), 1, ASM.Border, 1)
-	addListLayout(btnRow1, FD.Vertical, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
-	local saveBtn = create("TextButton", {
-		Parent = btnRow1,
-		FontFace = STYLE.FontBold,
-		TextColor3 = STYLE.Accent,
-		Text = "Save Config",
-		TextStrokeTransparency = 0,
-		Name = "selected config",
-		BackgroundTransparency = 1,
-		Size = UFO(195,15),
-		BorderSizePixel = 0,
-		TextSize = 14,
-		BackgroundColor3 = RGB(255,255,255),
-	})
+    local btnRow2 = create("Frame", {
+        Parent = frame,
+        Name = "Delete Config",
+        BackgroundTransparency = 1,
+        Position = UFS(0.503, 0.7457),
+        Size = UFO(115, 25),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    addStroke(btnRow2, RGB(65, 65, 65), 1, ASM.Border)
+    addStroke(btnRow2, RGB(65, 65, 65), 1, ASM.Border, 1)
+    addListLayout(btnRow2, FD.Vertical, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
+    local delBtn = create("TextButton", {
+        Parent = btnRow2,
+        FontFace = STYLE.FontBold,
+        TextColor3 = STYLE.Accent,
+        Text = "Delete Config",
+        TextStrokeTransparency = 0,
+        Name = "selected config",
+        BackgroundTransparency = 1,
+        Size = UFO(115, 31),
+        BorderSizePixel = 0,
+        TextSize = 14,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
 
-	local btnRow2 = create("Frame", {
-		Parent = frame,
-		Name = "Delete Config",
-		BackgroundTransparency = 1,
-		Position = UFS(0.503, 0.7457),
-		Size = UFO(115,25),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	addStroke(btnRow2, RGB(65,65,65), 1, ASM.Border)
-	addStroke(btnRow2, RGB(65,65,65), 1, ASM.Border, 1)
-	addListLayout(btnRow2, FD.Vertical, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
-	local delBtn = create("TextButton", {
-		Parent = btnRow2,
-		FontFace = STYLE.FontBold,
-		TextColor3 = STYLE.Accent,
-		Text = "Delete Config",
-		TextStrokeTransparency = 0,
-		Name = "selected config",
-		BackgroundTransparency = 1,
-		Size = UFO(115,31),
-		BorderSizePixel = 0,
-		TextSize = 14,
-		BackgroundColor3 = RGB(255,255,255),
-	})
+    local btnRow3 = create("Frame", {
+        Parent = frame,
+        Name = "set config",
+        BackgroundTransparency = 1,
+        Position = UFS(0, 0.8775),
+        Size = UFO(239, 25),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = STYLE.BgDark,
+    })
+    addStroke(btnRow3, RGB(65, 65, 65), 1, ASM.Border)
+    addStroke(btnRow3, RGB(65, 65, 65), 1, ASM.Border, 1)
+    addListLayout(btnRow3, FD.Vertical, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
+    local loadBtn = create("TextButton", {
+        Parent = btnRow3,
+        FontFace = STYLE.FontBold,
+        TextColor3 = STYLE.Accent,
+        Text = "Load config",
+        TextStrokeTransparency = 0,
+        Name = "selected config",
+        BackgroundTransparency = 1,
+        Size = UFO(239, 32),
+        BorderSizePixel = 0,
+        TextSize = 14,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
 
-	local btnRow3 = create("Frame", {
-		Parent = frame,
-		Name = "set config",
-		BackgroundTransparency = 1,
-		Position = UFS(0, 0.8775),
-		Size = UFO(239,25),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = STYLE.BgDark,
-	})
-	addStroke(btnRow3, RGB(65,65,65), 1, ASM.Border)
-	addStroke(btnRow3, RGB(65,65,65), 1, ASM.Border, 1)
-	addListLayout(btnRow3, FD.Vertical, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
-	local loadBtn = create("TextButton", {
-		Parent = btnRow3,
-		FontFace = STYLE.FontBold,
-		TextColor3 = STYLE.Accent,
-		Text = "Load config",
-		TextStrokeTransparency = 0,
-		Name = "selected config",
-		BackgroundTransparency = 1,
-		Size = UFO(239,32),
-		BorderSizePixel = 0,
-		TextSize = 14,
-		BackgroundColor3 = RGB(255,255,255),
-	})
+    -- Gradient on config window
+    create("UIGradient", {
+        Parent = frame,
+        Rotation = -90,
+        Color = makeGradient({
+            {0, RGB(255, 255, 255)},
+            {1, RGB(200, 200, 200)},
+        }),
+    })
 
-	-- Gradient on config window
-	create("UIGradient", {
-		Parent = frame,
-		Rotation = -90,
-		Color = makeGradient({
-			{0, RGB(255,255,255)},
-			{1, RGB(200,200,200)},
-		}),
-	})
-
-	return frame
+    return frame
 end
 
 function UI:CreateEspPreview(config)
-	config = config or {}
-	local parent = config.Parent or game.StarterGui
-	local pos = config.Position or UFS(0.157, 0.210)
-	local size = config.Size or UFO(275,325)
+    config = config or {}
+    local parent = config.Parent or game.StarterGui
+    local pos = config.Position or UFS(0.157, 0.210)
+    local size = config.Size or UFO(275, 325)
 
-	local frame = create("Frame", {
-		Parent = parent,
-		Name = "Esp Preview",
-		Position = pos,
-		Size = size,
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(22,22,22),
-	})
-	addStroke(frame, STYLE.BorderColor, 1, ASM.Border, 1)
-	addStroke(frame, STYLE.BorderColor, 1, ASM.Border)
-	addPadding(frame, 0,0,5,5)
+    local frame = create("Frame", {
+        Parent = parent,
+        Name = "Esp Preview",
+        Position = pos,
+        Size = size,
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(22, 22, 22),
+    })
+    addStroke(frame, STYLE.BorderColor, 1, ASM.Border, 1)
+    addStroke(frame, STYLE.BorderColor, 1, ASM.Border)
+    addPadding(frame, 0, 0, 5, 5)
 
-	-- Title
-	local titleLabel = create("TextLabel", {
-		Parent = frame,
-		FontFace = STYLE.FontTitle,
-		TextColor3 = RGB(255,255,255),
-		Text = "Esp Preview",
-		TextStrokeTransparency = 0,
-		Size = UFO(140,20),
-		BackgroundTransparency = 1,
-		TextXAlignment = TXA.Left,
-		Position = UFS(0.0075,0),
-		BorderSizePixel = 0,
-		TextSize = 14,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	create("UIGradient", {
-		Parent = titleLabel,
-		Color = makeGradient({
-			{0, RGB(255,255,255)},
-			{0.25, STYLE.Accent},
-			{0.5, RGB(255,255,255)},
-			{0.75, STYLE.Accent},
-			{1, RGB(255,255,255)},
-		}),
-	})
-	makeHighlight(frame, {
-		{0, RGB(22,22,22)},
-		{0.25, STYLE.Accent},
-		{0.5, RGB(22,22,22)},
-		{0.75, STYLE.Accent},
-		{1, RGB(22,22,22)},
-	}, UFO(275,1))
+    -- Title
+    local titleLabel = create("TextLabel", {
+        Parent = frame,
+        FontFace = STYLE.FontTitle,
+        TextColor3 = RGB(255, 255, 255),
+        Text = "Esp Preview",
+        TextStrokeTransparency = 0,
+        Size = UFO(140, 20),
+        BackgroundTransparency = 1,
+        TextXAlignment = TXA.Left,
+        Position = UFS(0.0075, 0),
+        BorderSizePixel = 0,
+        TextSize = 14,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    create("UIGradient", {
+        Parent = titleLabel,
+        Color = makeGradient({
+            {0, RGB(255, 255, 255)},
+            {0.25, STYLE.Accent},
+            {0.5, RGB(255, 255, 255)},
+            {0.75, STYLE.Accent},
+            {1, RGB(255, 255, 255)},
+        }),
+    })
+    makeHighlight(frame, {
+        {0, RGB(22, 22, 22)},
+        {0.25, STYLE.Accent},
+        {0.5, RGB(22, 22, 22)},
+        {0.75, STYLE.Accent},
+        {1, RGB(22, 22, 22)},
+    }, UFO(275, 1))
 
-	-- Preview area
-	local preview = create("Frame", {
-		Parent = frame,
-		Name = "Perview",
-		Position = UFS(0.0091, 0.0727),
-		Size = UFO(260,290),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(19,19,19),
-	})
-	addStroke(preview, STYLE.BorderLight, 1, ASM.Border)
-	addStroke(preview, STYLE.BorderLight, 1, ASM.Border, 1)
-	addListLayout(preview, FD.Vertical, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
-	-- Placeholder image
-	create("ImageLabel", {
-		Parent = preview,
-		Image = "rbxassetid://89494888821949",
-		BackgroundTransparency = 1,
-		Size = UFO(260,301),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(255,255,255),
-	})
+    -- Preview area
+    local preview = create("Frame", {
+        Parent = frame,
+        Name = "Perview",
+        Position = UFS(0.0091, 0.0727),
+        Size = UFO(260, 290),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(19, 19, 19),
+    })
+    addStroke(preview, STYLE.BorderLight, 1, ASM.Border)
+    addStroke(preview, STYLE.BorderLight, 1, ASM.Border, 1)
+    addListLayout(preview, FD.Vertical, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
 
-	-- Right extra text
-	local extra = create("TextLabel", {
-		Parent = frame,
-		FontFace = STYLE.FontTitle,
-		TextColor3 = RGB(255,255,255),
-		Text = "shit poop fart",
-		TextStrokeTransparency = 0,
-		Name = "shit poop fart",
-		Size = UFO(119,20),
-		BackgroundTransparency = 1,
-		TextXAlignment = TXA.Right,
-		Position = UFS(0.536,0),
-		BorderSizePixel = 0,
-		TextSize = 14,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	create("UIGradient", {
-		Parent = extra,
-		Color = makeGradient({
-			{0, RGB(255,255,255)},
-			{0.25, STYLE.Accent},
-			{0.5, RGB(255,255,255)},
-			{0.75, STYLE.Accent},
-			{1, RGB(255,255,255)},
-		}),
-	})
+    -- Placeholder image
+    create("ImageLabel", {
+        Parent = preview,
+        Image = "rbxassetid://89494888821949",
+        BackgroundTransparency = 1,
+        Size = UFO(260, 301),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
 
-	return frame
+    -- Right extra text
+    local extra = create("TextLabel", {
+        Parent = frame,
+        FontFace = STYLE.FontTitle,
+        TextColor3 = RGB(255, 255, 255),
+        Text = "shit poop fart",
+        TextStrokeTransparency = 0,
+        Name = "shit poop fart",
+        Size = UFO(119, 20),
+        BackgroundTransparency = 1,
+        TextXAlignment = TXA.Right,
+        Position = UFS(0.536, 0),
+        BorderSizePixel = 0,
+        TextSize = 14,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    create("UIGradient", {
+        Parent = extra,
+        Color = makeGradient({
+            {0, RGB(255, 255, 255)},
+            {0.25, STYLE.Accent},
+            {0.5, RGB(255, 255, 255)},
+            {0.75, STYLE.Accent},
+            {1, RGB(255, 255, 255)},
+        }),
+    })
+
+    return frame
 end
 
 function UI:CreateTargetHUD(config)
-	config = config or {}
-	local parent = config.Parent or game.StarterGui
-	local pos = config.Position or UFS(0.665, 0.441)
-	local size = config.Size or UFO(295,135)
+    config = config or {}
+    local parent = config.Parent or game.StarterGui
+    local pos = config.Position or UFS(0.665, 0.441)
+    local size = config.Size or UFO(295, 135)
 
-	local frame = create("Frame", {
-		Parent = parent,
-		Name = "Target",
-		Position = pos,
-		Size = size,
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(27,27,27),
-	})
-	addStroke(frame, STYLE.BorderColor, 1, ASM.Border, 1)
-	addStroke(frame, STYLE.BorderLight, 1, ASM.Border)
+    local frame = create("Frame", {
+        Parent = parent,
+        Name = "Target",
+        Position = pos,
+        Size = size,
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(27, 27, 27),
+    })
+    addStroke(frame, STYLE.BorderColor, 1, ASM.Border, 1)
+    addStroke(frame, STYLE.BorderLight, 1, ASM.Border)
 
-	-- Inner frame
-	local inner = create("Frame", {
-		Parent = frame,
-		Position = UFS(0.017, 0.044),
-		Size = UFO(285,123),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(24,24,24),
-	})
-	addStroke(inner, RGB(37,37,37), 1, ASM.Border)
-	addStroke(inner, RGB(37,37,37), 1, ASM.Border, 1)
-	makeHighlight(inner, {
-		{0, RGB(20,20,20)},
-		{0.25, STYLE.Accent},
-		{0.5, RGB(20,20,20)},
-		{0.75, STYLE.Accent},
-		{1, RGB(20,20,20)},
-	}, UFO(285,1))
-	create("UIGradient", {
-		Parent = inner,
-		Rotation = -90,
-		Color = makeGradient({
-			{0, RGB(255,255,255)},
-			{1, RGB(200,200,200)},
-		}),
-	})
+    -- Inner frame
+    local inner = create("Frame", {
+        Parent = frame,
+        Position = UFS(0.017, 0.044),
+        Size = UFO(285, 123),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(24, 24, 24),
+    })
+    addStroke(inner, RGB(37, 37, 37), 1, ASM.Border)
+    addStroke(inner, RGB(37, 37, 37), 1, ASM.Border, 1)
+    makeHighlight(inner, {
+        {0, RGB(20, 20, 20)},
+        {0.25, STYLE.Accent},
+        {0.5, RGB(20, 20, 20)},
+        {0.75, STYLE.Accent},
+        {1, RGB(20, 20, 20)},
+    }, UFO(285, 1))
+    create("UIGradient", {
+        Parent = inner,
+        Rotation = -90,
+        Color = makeGradient({
+            {0, RGB(255, 255, 255)},
+            {1, RGB(200, 200, 200)},
+        }),
+    })
 
-	-- Avatar placeholder
-	local avatar = create("ImageLabel", {
-		Parent = inner,
-		BorderColor3 = RGB(0,0,0),
-		Image = "rbxassetid://", -- replace with actual image
-		BackgroundTransparency = 1,
-		Position = UFS(0.028, 0.195),
-		Name = "",
-		Size = UFO(85,85),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	addStroke(avatar, STYLE.BorderColor, 1, ASM.Border, 1)
-	addStroke(avatar, RGB(36,36,36), 1, ASM.Border)
+    -- Avatar placeholder
+    local avatar = create("ImageLabel", {
+        Parent = inner,
+        BorderColor3 = RGB(0, 0, 0),
+        Image = "rbxassetid://",
+        BackgroundTransparency = 1,
+        Position = UFS(0.028, 0.195),
+        Name = "",
+        Size = UFO(85, 85),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    addStroke(avatar, STYLE.BorderColor, 1, ASM.Border, 1)
+    addStroke(avatar, RGB(36, 36, 36), 1, ASM.Border)
 
-	-- Info panel
-	local info = create("Frame", {
-		Parent = inner,
-		BackgroundTransparency = 1,
-		Position = UFS(0.361, 0.191),
-		Size = UFO(170,85),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	addPadding(info, 8,0,2,2)
-	addListLayout(info, FD.Vertical, 1, SO.LayoutOrder, UFA.Fill, nil, Enum.HorizontalAlignment.Center)
+    -- Info panel
+    local info = create("Frame", {
+        Parent = inner,
+        BackgroundTransparency = 1,
+        Position = UFS(0.361, 0.191),
+        Size = UFO(170, 85),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    addPadding(info, 8, 0, 2, 2)
+    addListLayout(info, FD.Vertical, 1, SO.LayoutOrder, UFA.Fill, nil, Enum.HorizontalAlignment.Center)
 
-	-- Sample info lines
-	local function addLine(text)
-		create("TextLabel", {
-			Parent = info,
-			FontFace = STYLE.FontBold,
-			TextColor3 = RGB(255,255,255),
-			Text = text,
-			BackgroundTransparency = 1,
-			TextXAlignment = TXA.Left,
-			Size = UFO(170,15),
-			BorderSizePixel = 0,
-			TextSize = 14,
-			BackgroundColor3 = RGB(255,255,255),
-		})
-	end
-	addLine("Username - lil O")
-	addLine("Health - 100%")
-	addLine("Distance - 9m")
-	addLine("Team - N/A")
+    -- Sample info lines
+    local function addLine(text)
+        create("TextLabel", {
+            Parent = info,
+            FontFace = STYLE.FontBold,
+            TextColor3 = RGB(255, 255, 255),
+            Text = text,
+            BackgroundTransparency = 1,
+            TextXAlignment = TXA.Left,
+            Size = UFO(170, 15),
+            BorderSizePixel = 0,
+            TextSize = 14,
+            BackgroundColor3 = RGB(255, 255, 255),
+        })
+    end
+    addLine("Username - lil O")
+    addLine("Health - 100%")
+    addLine("Distance - 9m")
+    addLine("Team - N/A")
 
-	-- Title on main frame
-	local titleLabel = create("TextLabel", {
-		Parent = frame,
-		FontFace = STYLE.FontTitle,
-		TextColor3 = RGB(255,255,255),
-		Text = "Target HUD",
-		TextStrokeTransparency = 0,
-		Size = UFO(200,20),
-		BackgroundTransparency = 1,
-		TextXAlignment = TXA.Left,
-		Position = UFS(0.044, 0.052),
-		BorderSizePixel = 0,
-		TextSize = 14,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	create("UIGradient", {
-		Parent = titleLabel,
-		Color = makeGradient({
-			{0, RGB(255,255,255)},
-			{0.25, STYLE.Accent},
-			{0.5, RGB(255,255,255)},
-			{0.75, STYLE.Accent},
-			{1, RGB(255,255,255)},
-		}),
-	})
+    -- Title on main frame
+    local titleLabel = create("TextLabel", {
+        Parent = frame,
+        FontFace = STYLE.FontTitle,
+        TextColor3 = RGB(255, 255, 255),
+        Text = "Target HUD",
+        TextStrokeTransparency = 0,
+        Size = UFO(200, 20),
+        BackgroundTransparency = 1,
+        TextXAlignment = TXA.Left,
+        Position = UFS(0.044, 0.052),
+        BorderSizePixel = 0,
+        TextSize = 14,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    create("UIGradient", {
+        Parent = titleLabel,
+        Color = makeGradient({
+            {0, RGB(255, 255, 255)},
+            {0.25, STYLE.Accent},
+            {0.5, RGB(255, 255, 255)},
+            {0.75, STYLE.Accent},
+            {1, RGB(255, 255, 255)},
+        }),
+    })
 
-	return frame
+    return frame
 end
 
 function UI:CreateWaterMark(config)
-	config = config or {}
-	local parent = config.Parent or game.StarterGui
-	local pos = config.Position or UFS(0.419, 0.054)
-	local size = config.Size or UFO(250,30)
+    config = config or {}
+    local parent = config.Parent or game.StarterGui
+    local pos = config.Position or UFS(0.419, 0.054)
+    local size = config.Size or UFO(250, 30)
 
-	local frame = create("Frame", {
-		Parent = parent,
-		Name = "WaterMark",
-		Position = pos,
-		Size = size,
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = STYLE.BgDark,
-	})
-	addStroke(frame, STYLE.BorderColor, 1, ASM.Border, 1)
-	addStroke(frame, STYLE.BorderColor, 1, ASM.Border)
-	addPadding(frame, 0,0,5,5)
-	makeHighlight(frame, {
-		{0, RGB(16,16,16)},
-		{0.25, STYLE.Accent},
-		{0.5, RGB(16,16,16)},
-		{0.75, STYLE.Accent},
-		{1, RGB(16,16,16)},
-	}, UFO(249,1))
-	create("UIGradient", {
-		Parent = frame,
-		Rotation = -90,
-		Color = makeGradient({
-			{0, RGB(255,255,255)},
-			{1, RGB(200,200,200)},
-		}),
-	})
+    local frame = create("Frame", {
+        Parent = parent,
+        Name = "WaterMark",
+        Position = pos,
+        Size = size,
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = STYLE.BgDark,
+    })
+    addStroke(frame, STYLE.BorderColor, 1, ASM.Border, 1)
+    addStroke(frame, STYLE.BorderColor, 1, ASM.Border)
+    addPadding(frame, 0, 0, 5, 5)
+    makeHighlight(frame, {
+        {0, RGB(16, 16, 16)},
+        {0.25, STYLE.Accent},
+        {0.5, RGB(16, 16, 16)},
+        {0.75, STYLE.Accent},
+        {1, RGB(16, 16, 16)},
+    }, UFO(249, 1))
+    create("UIGradient", {
+        Parent = frame,
+        Rotation = -90,
+        Color = makeGradient({
+            {0, RGB(255, 255, 255)},
+            {1, RGB(200, 200, 200)},
+        }),
+    })
 
-	local inner = create("Frame", {
-		Parent = frame,
-		BackgroundTransparency = 1,
-		Size = UFO(239,32),
-		BorderColor3 = RGB(0,0,0),
-		BorderSizePixel = 0,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	addListLayout(inner, FD.Horizontal, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
+    local inner = create("Frame", {
+        Parent = frame,
+        BackgroundTransparency = 1,
+        Size = UFO(239, 32),
+        BorderColor3 = RGB(0, 0, 0),
+        BorderSizePixel = 0,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    addListLayout(inner, FD.Horizontal, 0, SO.LayoutOrder, UFA.Fill, UFA.Fill)
 
-	local text = create("TextLabel", {
-		Parent = inner,
-		FontFace = STYLE.FontTitle,
-		TextColor3 = RGB(255,255,255),
-		Text = "  Vergil.lol - Universal - Free",
-		TextStrokeTransparency = 0,
-		Name = "text",
-		BackgroundTransparency = 1,
-		Size = UFO(240,30),
-		BorderSizePixel = 0,
-		TextSize = 14,
-		BackgroundColor3 = RGB(255,255,255),
-	})
-	create("UIGradient", {
-		Parent = text,
-		Color = makeGradient({
-			{0, RGB(255,255,255)},
-			{0.25, STYLE.Accent},
-			{0.5, RGB(255,255,255)},
-			{0.75, STYLE.Accent},
-			{1, RGB(255,255,255)},
-		}),
-	})
+    local text = create("TextLabel", {
+        Parent = inner,
+        FontFace = STYLE.FontTitle,
+        TextColor3 = RGB(255, 255, 255),
+        Text = "  Vergil.lol - Universal - Free",
+        TextStrokeTransparency = 0,
+        Name = "text",
+        BackgroundTransparency = 1,
+        Size = UFO(240, 30),
+        BorderSizePixel = 0,
+        TextSize = 14,
+        BackgroundColor3 = RGB(255, 255, 255),
+    })
+    create("UIGradient", {
+        Parent = text,
+        Color = makeGradient({
+            {0, RGB(255, 255, 255)},
+            {0.25, STYLE.Accent},
+            {0.5, RGB(255, 255, 255)},
+            {0.75, STYLE.Accent},
+            {1, RGB(255, 255, 255)},
+        }),
+    })
 
-	return frame
+    return frame
 end
 
 return UI
